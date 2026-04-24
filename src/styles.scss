@@ -1,0 +1,231 @@
+/* ============================================
+   TalkifyX — Global Styles
+   Design: Glassmorphism | Light + Purple Theme
+   ============================================ */
+
+/* Google Fonts fallback */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Purple palette */
+  --primary: #7C3AED;
+  --primary-light: #A855F7;
+  --primary-dark: #6D28D9;
+  --primary-faint: rgba(124, 58, 237, 0.06);
+  --primary-soft: rgba(124, 58, 237, 0.12);
+
+  /* Neutrals */
+  --text-primary: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --border: #E5E7EB;
+  --bg-page: #f8f4ff;
+  --bg-surface: rgba(255, 255, 255, 0.75);
+
+  /* Status colours */
+  --status-online: #10B981;
+  --status-away: #F59E0B;
+  --status-dnd: #EF4444;
+  --status-offline: #9CA3AF;
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(124, 58, 237, 0.1);
+  --shadow-lg: 0 8px 32px rgba(124, 58, 237, 0.15);
+
+  /* Transitions */
+  --trans-fast: 0.15s ease;
+  --trans-base: 0.2s ease;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbars (global) ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
+
+/* ── Selections ── */
+::selection { background: rgba(124, 58, 237, 0.2); color: var(--primary-dark); }
+
+/* ── Utility: Glassmorphism card ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-xl);
+}
+
+/* ── Utility: Purple gradient text ── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Utility: Overlay backdrop ── */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 400;
+}
+
+/* ── Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-purple {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); }
+}
+
+/* ── Responsive helpers ── */
+@media (max-width: 768px) {
+  html { font-size: 14px; }
+}
+
+/* ── Focus visible (accessibility) ── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Input autofill fix ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 40px rgba(255, 255, 255, 0.9) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Tooltip base ── */
+[title] { position: relative; }
+
+/* ── Toast / snackbar styles (for future use) ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(31, 41, 55, 0.92);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 100px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 9999;
+  animation: slideUp 0.3s ease;
+  white-space: nowrap;
+}
+
+/* ── Loading bar (top of page) ── */
+.loading-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
+  animation: loadingBar 1.5s ease-in-out infinite;
+  z-index: 10000;
+}
+@keyframes loadingBar {
+  0%   { width: 0%; opacity: 1; }
+  70%  { width: 85%; opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}
+
+/* ── Message bubble global base ── */
+.bubble-own { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; }
+.bubble-other { background: rgba(255, 255, 255, 0.9); color: var(--text-primary); }
+
+/* ── Badge ── */
+.badge-purple {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ── Chip ── */
+.chip-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary-faint);
+  color: var(--primary);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ── Status indicators ── */
+.status-indicator {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-indicator.online  { background: var(--status-online); }
+.status-indicator.away    { background: var(--status-away); }
+.status-indicator.dnd     { background: var(--status-dnd); }
+.status-indicator.offline { background: var(--status-offline); }
+
+/* ── App-level enter animations ── */
+router-outlet + * { animation: fadeIn 0.25s ease; }
