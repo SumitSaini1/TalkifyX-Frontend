@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { FcmService } from '../../../core/services/fcm.service';
 
 @Component({
   selector: 'app-login',
@@ -196,7 +197,7 @@ export class LoginComponent {
   showPass = signal(false);
   oauthUrl = 'http://localhost:8080/oauth2/authorization/google';
 
-  constructor(private fb: FormBuilder, private auth: AuthService, private router: Router) {}
+  constructor(private fb: FormBuilder, private auth: AuthService, private fcm: FcmService, private router: Router) {}
 
   isInvalid(field: string): boolean {
     const c = this.form.get(field);
@@ -208,7 +209,20 @@ export class LoginComponent {
     this.loading.set(true);
     this.error.set('');
     this.auth.login(this.form.value as any).subscribe({
-      next: () => this.router.navigate(['/chat']),
+      next: () => {
+        this.loading.set(false);
+        // Fetch full profile so avatarUrl, status, fcmToken are populated
+        this.auth.getProfile().subscribe({
+          complete: () => {
+            this.fcm.initFcm();
+            this.router.navigate(['/chat']);
+          },
+          error: () => {
+            this.fcm.initFcm();
+            this.router.navigate(['/chat']);
+          },
+        });
+      },
       error: err => {
         this.loading.set(false);
         this.error.set(err.error?.message || 'Invalid credentials. Please try again.');

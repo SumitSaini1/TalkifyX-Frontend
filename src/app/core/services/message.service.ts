@@ -16,24 +16,7 @@ export class MessageService {
   constructor(private http: HttpClient) {}
 
   sendMessage(req: MessageRequest): Observable<Message> {
-    const userStr = localStorage.getItem("talkifyx_user");
-  
-    if (!userStr) {
-      throw new Error("User not found in localStorage");
-    }
-  
-    const user = JSON.parse(userStr);
-    const userId = user.id;
-  
-    if (!userId) {
-      throw new Error("User ID missing in localStorage");
-    }
-  
-    return this.http.post<Message>(this.base, req, {
-      headers: {
-        "X-User-Id": userId.toString(), 
-      },
-    });
+    return this.http.post<Message>(this.base, req);
   }
 
   getMessagesByRoom(

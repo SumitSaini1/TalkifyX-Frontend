@@ -157,7 +157,7 @@ import { NotificationsPanelComponent } from '../../notifications/notifications-p
 
     <!-- Modals -->
     @if(showNewChat()) {
-      <app-new-chat-modal (close)="showNewChat.set(false)" (roomCreated)="onRoomCreated($event)"/>
+      <app-new-chat-modal [existingRooms]="rooms()" (close)="showNewChat.set(false)" (roomCreated)="onRoomCreated($event)"/>
     }
     @if(showNotifications()) {
       <app-notifications-panel (close)="showNotifications.set(false)"/>
@@ -319,6 +319,8 @@ export class ChatShellComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private typingTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  private presenceSessionId: string | null = null;
+  private presencePingInterval: ReturnType<typeof setInterval> | null = null;
 
   me = this.auth.currentUser;
 
@@ -338,12 +340,43 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.loadRooms();
     this.ws.connect();
     this.setupWsListeners();
+    this.loadRooms();
     const userId = this.auth.getUserId();
     if (userId) {
       this.notifService.getUnreadCount(userId).subscribe();
+      this.connectPresence(userId);
+    }
+  }
+
+  private connectPresence(userId: number): void {
+    this.presenceService.connect({
+      userId,
+      status: 'ONLINE',
+      deviceType: 'WEB',
+    }).subscribe({
+      next: res => {
+        this.presenceSessionId = res.sessionId ?? null;
+        // Ping every 30s to keep the session alive (backend cleans at 60s)
+        this.presencePingInterval = setInterval(() => {
+          if (this.presenceSessionId) {
+            this.presenceService.ping(this.presenceSessionId).subscribe({ error: () => {} });
+          }
+        }, 30_000);
+      },
+      error: () => {} // non-fatal — presence is best-effort
+    });
+  }
+
+  private disconnectPresence(): void {
+    if (this.presencePingInterval) {
+      clearInterval(this.presencePingInterval);
+      this.presencePingInterval = null;
+    }
+    if (this.presenceSessionId) {
+      this.presenceService.disconnect(this.presenceSessionId).subscribe({ error: () => {} });
+      this.presenceSessionId = null;
     }
   }
 
@@ -355,8 +388,11 @@ export class ChatShellComponent implements OnInit, OnDestroy {
       next: rooms => {
         this.rooms.set(rooms);
         this.loading.set(false);
-        // Subscribe to all rooms via WS
-        rooms.forEach(r => this.ws.subscribeToRoom(r.roomId));
+        // Subscribe to rooms only if WS is already up;
+        // if not, the CONNECTED event handler will call resubscribeRooms()
+        if (this.ws.isConnected()) {
+          rooms.forEach(r => this.ws.subscribeToRoom(r.roomId));
+        }
         // Load bulk presence for DM rooms
         const dmUserIds = rooms.filter(r => r.type === 'DM' && r.otherUser).map(r => r.otherUser!.id);
         if (dmUserIds.length) {
@@ -373,7 +409,10 @@ export class ChatShellComponent implements OnInit, OnDestroy {
 
   private setupWsListeners(): void {
     this.ws.events.pipe(takeUntil(this.destroy$)).subscribe(evt => {
-      if (evt.kind === 'MESSAGE') {
+      if (evt.kind === 'CONNECTED') {
+        // WS just (re)connected — subscribe to all currently known rooms
+        this.rooms().forEach(r => this.ws.subscribeToRoom(r.roomId));
+      } else if (evt.kind === 'MESSAGE') {
         this.handleNewMessage(evt.data as any);
       } else if (evt.kind === 'TYPING') {
         const t = evt.data as any;
@@ -498,6 +537,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next(); this.destroy$.complete();
     this.ws.disconnect();
+    this.disconnectPresence();
     this.typingTimers.forEach(t => clearTimeout(t));
   }
 }

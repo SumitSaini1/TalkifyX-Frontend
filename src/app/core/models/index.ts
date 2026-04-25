@@ -41,6 +41,7 @@ export interface ProfileUpdateRequest {
   fullName?: string;
   username?: string;
   avatarUrl?: string;
+  fcmToken?: string;
 }
 
 export interface ChangePasswordRequest {

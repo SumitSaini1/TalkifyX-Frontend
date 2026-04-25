@@ -40,6 +40,9 @@ export class WebSocketService implements OnDestroy {
     this.client = new Client({
       webSocketFactory: () =>
         new SockJS(`${environment.wsUrl}?userId=${userId}`),
+      connectHeaders: {
+        'X-User-Id': String(userId),
+      },
       reconnectDelay: 5000,
       onConnect: () => {
         this.connected = true;
