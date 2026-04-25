@@ -1,16 +1,16 @@
-import { Component, OnInit, OnDestroy, signal, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { RouterOutlet, RouterLink, Router } from "@angular/router";
 import { FormsModule } from "@angular/forms";
+import { Router, RouterLink, RouterOutlet } from "@angular/router";
 import { Subject, takeUntil } from "rxjs";
+import { Room, User } from "../../../core/models";
 import { AuthService } from "../../../core/services/auth.service";
-import { RoomService } from "../../../core/services/room.service";
-import { WebSocketService } from "../../../core/services/websocket.service";
 import { NotificationService } from "../../../core/services/notification.service";
 import { PresenceService } from "../../../core/services/presence.service";
-import { Room, User, PresencePayload, Message } from "../../../core/models";
-import { NewChatModalComponent } from "../new-chat-modal/new-chat-modal.component";
+import { RoomService } from "../../../core/services/room.service";
+import { WebSocketService } from "../../../core/services/websocket.service";
 import { NotificationsPanelComponent } from "../../notifications/notifications-panel.component";
+import { NewChatModalComponent } from "../new-chat-modal/new-chat-modal.component";
+import { Component, OnInit, OnDestroy, signal, computed, HostListener } from "@angular/core";
 
 @Component({
   selector: "app-chat-shell",
@@ -982,6 +982,10 @@ export class ChatShellComponent implements OnInit, OnDestroy {
     return d.toLocaleDateString([], { month: "short", day: "numeric" });
   }
 
+  @HostListener("window:beforeunload")
+  onBeforeUnload(): void {
+    this.disconnectPresence();
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
