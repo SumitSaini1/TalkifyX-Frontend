@@ -11,8 +11,10 @@ import {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly base = `${environment.apiBaseUrl}/api/auth`;
+  private readonly presenceBase = `${environment.apiBaseUrl}/api/presence`;
   private readonly TOKEN_KEY = 'talkifyx_token';
   private readonly USER_KEY = 'talkifyx_user';
+  private readonly SESSION_KEY = 'talkifyx_session';
 
   currentUser = signal<User | null>(this.loadUser());
   isAuthenticated = signal<boolean>(!!this.getToken());
@@ -36,6 +38,12 @@ export class AuthService {
   }
 
   logout(): void {
+    const sessionId = localStorage.getItem(this.SESSION_KEY);
+    if (sessionId) {
+      this.http.post(`${this.presenceBase}/disconnect`, null, { params: { sessionId } }).subscribe({ error: () => {} });
+      localStorage.removeItem(this.SESSION_KEY);
+    }
+    this.http.put(`${this.base}/status`, null, { params: { status: 'INVISIBLE' } }).subscribe({ error: () => {} });
     this.http.post(`${this.base}/logout`, {}).subscribe({ error: () => {} });
     this.clearSession();
     this.router.navigate(['/auth/login']);
@@ -68,7 +76,17 @@ export class AuthService {
   }
 
   updateStatus(status: UserStatus): Observable<ApiResponse> {
-    return this.http.put<ApiResponse>(`${this.base}/status`, null, { params: { status } });
+    const userId = this.getUserId();
+    if (userId) {
+      this.http.put(`${this.presenceBase}/${userId}/status`, null, { params: { status } }).subscribe({ error: () => {} });
+    }
+    return this.http.put<ApiResponse>(`${this.base}/status`, null, { params: { status } }).pipe(
+      tap(() => this.currentUser.update(u => u ? { ...u, status } : null))
+    );
+  }
+
+  saveSessionId(sessionId: string): void {
+    localStorage.setItem(this.SESSION_KEY, sessionId);
   }
 
   getToken(): string | null {
