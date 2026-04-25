@@ -68,10 +68,9 @@ export interface Room {
   lastMessageAt?: string;
   createdAt?: string;
   memberCount?: number;
-  // UI computed
   unreadCount?: number;
   lastMessage?: Message;
-  otherUser?: User; // for DMs
+  otherUser?: User;
 }
 
 export interface RoomRequest {
@@ -91,7 +90,6 @@ export interface RoomMember {
   joinedAt?: string;
   lastReadAt?: string;
   isMuted?: boolean;
-  // UI joined
   user?: User;
 }
 
@@ -112,7 +110,8 @@ export interface Message {
   deliveryStatus: DeliveryStatus;
   sentAt: string;
   editedAt?: string;
-  // UI joined
+  senderName?: string;
+  senderAvatar?: string;
   sender?: User;
   replyToMessage?: Message;
   reactions?: ReactionGroup[];
@@ -224,7 +223,6 @@ export interface Notification {
   messageId?: string;
   isRead: boolean;
   createdAt: string;
-  // UI joined
   actor?: User;
 }
 
