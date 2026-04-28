@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { FcmService } from '../../../core/services/fcm.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -195,7 +196,7 @@ export class LoginComponent {
   loading = signal(false);
   error = signal('');
   showPass = signal(false);
-  oauthUrl = 'http://localhost:8080/oauth2/authorization/google';
+  oauthUrl = environment.oauthGoogleUrl;
 
   constructor(private fb: FormBuilder, private auth: AuthService, private fcm: FcmService, private router: Router) {}
 

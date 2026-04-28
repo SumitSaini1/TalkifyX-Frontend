@@ -100,6 +100,7 @@ import {
               [src]="me()?.avatarUrl || avatarPlaceholder(me())"
               class="avatar"
               [alt]="me()?.fullName"
+              (error)="$any($event.target).src = avatarPlaceholder(me())"
             />
             <span
               class="status-dot"
@@ -877,20 +878,29 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   }
 
   private setupWsListeners(): void {
-    this.ws.events.pipe(takeUntil(this.destroy$)).subscribe((evt) => {
+    this.ws.events.pipe(takeUntil(this.destroy$)).subscribe((evt: any) => {
       if (evt.kind === "CONNECTED") {
-        console.log('WS CONNECTED, subscribing to rooms:', this.rooms().map(r => r.roomId));
+        console.log(
+          "WS CONNECTED, subscribing to rooms:",
+          this.rooms().map((r) => r.roomId),
+        );
         this.rooms().forEach((r) => this.ws.subscribeToRoom(r.roomId));
-      } else if (evt.kind === "MESSAGE") {
-        this.handleNewMessage(evt.data as any);
       } else if (evt.kind === "TYPING") {
-        const t = evt.data as any;
+        const t = evt.data;
         if (t.senderId !== this.auth.getUserId()) this.setTyping(t.roomId);
       } else if (evt.kind === "PRESENCE") {
-        const p = evt.data as any;
+        const p = evt.data;
         const map = new Map(this.presenceMap());
         map.set(p.userId, p.status);
         this.presenceMap.set(map);
+      } else if (evt.kind === "MESSAGE") {
+        const msg = evt.data;
+        const roomExists = this.rooms().find((r) => r.roomId === msg.roomId);
+        if (!roomExists) {
+          this.loadRooms();
+        } else {
+          this.handleNewMessage(msg);
+        }
       }
     });
   }

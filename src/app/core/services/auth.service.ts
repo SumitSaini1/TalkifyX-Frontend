@@ -98,7 +98,7 @@ export class AuthService {
     return u ? u.id : null;
   }
 
-  private saveToken(token: string): void {
+  saveToken(token: string): void {
     localStorage.setItem(this.TOKEN_KEY, token);
   }
 
