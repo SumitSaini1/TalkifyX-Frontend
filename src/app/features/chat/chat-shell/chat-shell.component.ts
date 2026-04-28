@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { FormsModule } from "@angular/forms";
+
 import { Router, RouterLink, RouterOutlet } from "@angular/router";
 import { Subject, takeUntil } from "rxjs";
 import { Room, User } from "../../../core/models";
@@ -26,7 +26,6 @@ import {
     CommonModule,
     RouterOutlet,
     RouterLink,
-    FormsModule,
     NewChatModalComponent,
     NotificationsPanelComponent,
   ],
@@ -100,6 +99,7 @@ import {
               [src]="me()?.avatarUrl || avatarPlaceholder(me())"
               class="avatar"
               [alt]="me()?.fullName"
+              (error)="$any($event.target).src = avatarPlaceholder(me())"
             />
             <span
               class="status-dot"
@@ -128,14 +128,14 @@ import {
             />
           </svg>
           <input
-            [(ngModel)]="searchQuery"
+            [value]="searchQuery()"
             placeholder="Search chats..."
-            (input)="onSearch()"
+            (input)="searchQuery.set($any($event.target).value)"
           />
-          @if (searchQuery) {
+          @if (searchQuery()) {
             <button
               class="clear-search"
-              (click)="searchQuery = ''; loadRooms()"
+              (click)="searchQuery.set(''); loadRooms()"
             >
               <svg viewBox="0 0 20 20" fill="currentColor">
                 <path
@@ -169,7 +169,7 @@ import {
                   opacity=".3"
                 />
               </svg>
-              <p>{{ searchQuery ? "No chats found" : "No chats yet" }}</p>
+             <p>{{ searchQuery() ? "No chats found" : "No chats yet" }}</p>
               <button class="start-btn" (click)="showNewChat.set(true)">
                 Start a conversation
               </button>
@@ -725,7 +725,7 @@ import {
 export class ChatShellComponent implements OnInit, OnDestroy {
   rooms = signal<Room[]>([]);
   loading = signal(true);
-  searchQuery = "";
+  searchQuery = signal("");
   activeRoomId = signal<number | null>(null);
   showNewChat = signal(false);
   showNotifications = signal(false);
@@ -742,10 +742,10 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   me = this.auth.currentUser;
 
   filteredRooms = computed(() => {
-    const q = this.searchQuery.toLowerCase();
+    const q = this.searchQuery().toLowerCase();
     if (!q) return this.rooms();
     return this.rooms().filter((r) =>
-      this.getRoomName(r).toLowerCase().includes(q),
+      this.getRoomName(r).toLowerCase().startsWith(q),
     );
   });
 
@@ -814,9 +814,8 @@ export class ChatShellComponent implements OnInit, OnDestroy {
           this.rooms.set(rooms);
           this.loading.set(false);
 
-          if (this.ws.isConnected()) {
-            rooms.forEach((r) => this.ws.subscribeToRoom(r.roomId));
-          }
+          // ✅ Always try to subscribe, CONNECTED event handles the other case
+          rooms.forEach((r) => this.ws.subscribeToRoom(r.roomId));
 
           // Load last message for each room
           rooms.forEach((r) => {
@@ -878,19 +877,29 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   }
 
   private setupWsListeners(): void {
-    this.ws.events.pipe(takeUntil(this.destroy$)).subscribe((evt) => {
+    this.ws.events.pipe(takeUntil(this.destroy$)).subscribe((evt: any) => {
       if (evt.kind === "CONNECTED") {
+        console.log(
+          "WS CONNECTED, subscribing to rooms:",
+          this.rooms().map((r) => r.roomId),
+        );
         this.rooms().forEach((r) => this.ws.subscribeToRoom(r.roomId));
-      } else if (evt.kind === "MESSAGE") {
-        this.handleNewMessage(evt.data as any);
       } else if (evt.kind === "TYPING") {
-        const t = evt.data as any;
+        const t = evt.data;
         if (t.senderId !== this.auth.getUserId()) this.setTyping(t.roomId);
       } else if (evt.kind === "PRESENCE") {
-        const p = evt.data as any;
+        const p = evt.data;
         const map = new Map(this.presenceMap());
         map.set(p.userId, p.status);
         this.presenceMap.set(map);
+      } else if (evt.kind === "MESSAGE") {
+        const msg = evt.data;
+        const roomExists = this.rooms().find((r) => r.roomId === msg.roomId);
+        if (!roomExists) {
+          this.loadRooms();
+        } else {
+          this.handleNewMessage(msg);
+        }
       }
     });
   }

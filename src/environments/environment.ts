@@ -2,6 +2,7 @@ export const environment = {
   production: false,
   apiBaseUrl: 'http://localhost:8080',
   wsUrl: 'http://localhost:8085/ws',
+  oauthGoogleUrl: 'http://localhost:8081/oauth2/authorization/google',
   firebase: {
     apiKey: 'REPLACE_WITH_YOUR_FIREBASE_API_KEY',
     authDomain: 'REPLACE_WITH_YOUR_AUTH_DOMAIN',
