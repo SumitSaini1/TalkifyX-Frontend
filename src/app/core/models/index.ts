@@ -141,7 +141,6 @@ export interface ReactionGroup {
   userIds: number[];
 }
 
-// ===== WEBSOCKET PAYLOADS =====
 export interface ChatPayload {
   type: 'CHAT_MESSAGE' | 'TYPING_INDICATOR' | 'READ_RECEIPT' | 'REACTION' | 'MESSAGE_EDIT' | 'MESSAGE_DELETE';
   senderId?: number;
@@ -152,8 +151,10 @@ export interface ChatPayload {
   newContent?: string;
   deletedId?: string;
   emoji?: string;
+  upToMessageId?: string; 
+  senderName?: string;   // ADD
+  senderAvatar?: string;
 }
-
 export interface TypingPayload {
   senderId: number;
   roomId: number;

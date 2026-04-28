@@ -78,7 +78,17 @@ export class WebSocketService implements OnDestroy {
   }
 
   subscribeToRoom(roomId: number): void {
-    if (!this.connected || this.roomSubscriptions.has(roomId)) return;
+    if (this.roomSubscriptions.has(roomId)) return;
+    if (!this.connected) {
+      // Queue subscription until CONNECTED fires
+      const unsub = this.events$.subscribe((evt) => {
+        if (evt.kind === "CONNECTED") {
+          unsub.unsubscribe();
+          this.subscribeToRoom(roomId);
+        }
+      });
+      return;
+    }
     const sub = this.client.subscribe(
       `/topic/room/${roomId}`,
       (msg: IMessage) => {
@@ -108,10 +118,8 @@ export class WebSocketService implements OnDestroy {
     const sub = this.client.subscribe(
       `/topic/user/${userId}`,
       (msg: IMessage) => {
-        try {
-          const data = JSON.parse(msg.body);
-          this.events$.next({ kind: "MESSAGE", data });
-        } catch {}
+        // Route through handleRoomMessage so all event types are detected correctly
+        this.handleRoomMessage(msg);
       },
     );
     this.subscriptions.set(`user-${userId}`, sub);
@@ -120,37 +128,42 @@ export class WebSocketService implements OnDestroy {
   private handleRoomMessage(msg: IMessage): void {
     try {
       const data = JSON.parse(msg.body);
-      // Detect by fields present
-      if (
-        data.isTyping !== undefined ||
-        (data.senderId &&
-          data.roomId &&
-          data.content === undefined &&
-          data.messageId === undefined)
-      ) {
-        this.events$.next({ kind: "TYPING", data: data as TypingPayload });
-      } else if (data.readerId !== undefined) {
-        this.events$.next({ kind: "READ", data: data as ReadReceiptPayload });
-      } else if (data.type === "REACTION") {
-        this.events$.next({ kind: "REACTION", data });
+      console.log("[WS] raw frame:", JSON.stringify(data));
+
+      if (data.eventType === "MESSAGE") {
+        this.events$.next({ kind: "MESSAGE", data: data as Message });
       } else if (data.type === "MESSAGE_EDIT") {
         this.events$.next({ kind: "MSG_EDIT", data });
       } else if (data.type === "MESSAGE_DELETE") {
         this.events$.next({ kind: "MSG_DELETE", data });
-      } else if (data.messageId) {
-        this.events$.next({ kind: "MESSAGE", data: data as Message });
+      } else if (data.type === "REACTION") {
+        this.events$.next({ kind: "REACTION", data });
+      } else if (data.readerId !== undefined) {
+        this.events$.next({ kind: "READ", data: data as ReadReceiptPayload });
+      } else if (
+        data.isTyping !== undefined ||
+        (data.senderId && data.roomId && !data.content && !data.messageId)
+      ) {
+        this.events$.next({ kind: "TYPING", data: data as TypingPayload });
       }
     } catch (e) {
-      console.error("WS parse error", e);
+      console.error("[WS] parse error", e);
     }
   }
-
-  // Send via STOMP /app/chat.send
   sendMessage(payload: ChatPayload): void {
     if (!this.connected) return;
+    const user = this.auth.currentUser();
+    console.log("[WS] currentUser:", user);
+    const body = JSON.stringify({
+      ...payload,
+      senderName: user?.fullName,
+      senderAvatar: user?.avatarUrl,
+    });
+    console.log("[WS] sending body:", body);
     this.client.publish({
       destination: "/app/chat.send",
-      body: JSON.stringify(payload),
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body,
     });
   }
 
@@ -158,6 +171,7 @@ export class WebSocketService implements OnDestroy {
     if (!this.connected) return;
     this.client.publish({
       destination: "/app/chat.typing",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
       body: JSON.stringify(payload),
     });
   }
@@ -166,6 +180,7 @@ export class WebSocketService implements OnDestroy {
     if (!this.connected) return;
     this.client.publish({
       destination: "/app/chat.read",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
       body: JSON.stringify(payload),
     });
   }

@@ -814,9 +814,8 @@ export class ChatShellComponent implements OnInit, OnDestroy {
           this.rooms.set(rooms);
           this.loading.set(false);
 
-          if (this.ws.isConnected()) {
-            rooms.forEach((r) => this.ws.subscribeToRoom(r.roomId));
-          }
+          // ✅ Always try to subscribe, CONNECTED event handles the other case
+          rooms.forEach((r) => this.ws.subscribeToRoom(r.roomId));
 
           // Load last message for each room
           rooms.forEach((r) => {
@@ -880,6 +879,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   private setupWsListeners(): void {
     this.ws.events.pipe(takeUntil(this.destroy$)).subscribe((evt) => {
       if (evt.kind === "CONNECTED") {
+        console.log('WS CONNECTED, subscribing to rooms:', this.rooms().map(r => r.roomId));
         this.rooms().forEach((r) => this.ws.subscribeToRoom(r.roomId));
       } else if (evt.kind === "MESSAGE") {
         this.handleNewMessage(evt.data as any);

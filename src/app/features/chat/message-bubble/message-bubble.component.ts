@@ -181,9 +181,16 @@ import { Message, RoomMember } from "../../../core/models";
               @if (isOwn && !message.isDeleted) {
                 <span class="delivery-icon" [title]="message.deliveryStatus">
                   @if (message.deliveryStatus === "READ") {
-                    <svg viewBox="0 0 16 11" fill="none" class="read-check">
+                    <svg viewBox="0 0 18 11" fill="none" class="read-check">
                       <path
-                        d="M1 5.5L4.5 9 8 5.5M6 5.5L9.5 9 15 3"
+                        d="M1 5.5L4.5 9 10 3"
+                        stroke="#7C3AED"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M5 5.5L8.5 9 14 3"
                         stroke="#7C3AED"
                         stroke-width="1.8"
                         stroke-linecap="round"
@@ -192,12 +199,19 @@ import { Message, RoomMember } from "../../../core/models";
                     </svg>
                   } @else if (message.deliveryStatus === "DELIVERED") {
                     <svg
-                      viewBox="0 0 16 11"
+                      viewBox="0 0 18 11"
                       fill="none"
                       class="delivered-check"
                     >
                       <path
-                        d="M1 5.5L4.5 9 8 5.5M6 5.5L9.5 9 15 3"
+                        d="M1 5.5L4.5 9 10 3"
+                        stroke="#9CA3AF"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="M5 5.5L8.5 9 14 3"
                         stroke="#9CA3AF"
                         stroke-width="1.8"
                         stroke-linecap="round"
@@ -215,6 +229,7 @@ import { Message, RoomMember } from "../../../core/models";
                       />
                     </svg>
                   }
+                  
                 </span>
               }
             </div>
@@ -533,9 +548,12 @@ import { Message, RoomMember } from "../../../core/models";
         align-items: center;
       }
       .read-check,
-      .delivered-check,
+      .delivered-check {
+        width: 18px;
+        height: 11px;
+      }
       .sent-check {
-        width: 16px;
+        width: 10px;
         height: 11px;
       }
 
@@ -587,7 +605,6 @@ export class MessageBubbleComponent {
   senderName(): string {
     return this.message.senderName || `User ${this.message.senderId}`;
   }
-  
 
   senderAvatar(): string {
     if (this.message.senderAvatar) return this.message.senderAvatar;
@@ -626,10 +643,13 @@ export class MessageBubbleComponent {
   onDelete(): void {
     this.delete.emit(this.message);
   }
+  // onReact(emoji: string): void {
+  //   this.react.emit({ messageId: this.message.messageId, emoji });
+  //   this.showReactPicker.set(false);
+  //   this.hovered.set(false);
+  // }
   onReact(emoji: string): void {
     this.react.emit({ messageId: this.message.messageId, emoji });
-    this.showReactPicker.set(false);
-    this.hovered.set(false);
   }
   onImageClick(): void {
     if (this.message.mediaUrl) this.imageClick.emit(this.message.mediaUrl);
