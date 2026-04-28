@@ -77,7 +77,18 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
                 <span class="typing-dots"
                   ><span></span><span></span><span></span
                 ></span>
-                typing...
+                @if (room()?.type === "GROUP") {
+                  {{
+                    typingNames().length === 1
+                      ? typingNames()[0] + " is typing..."
+                      : typingNames().slice(0, -1).join(", ") +
+                        " & " +
+                        typingNames().at(-1) +
+                        " are typing..."
+                  }}
+                } @else {
+                  typing...
+                }
               </span>
             } @else {
               {{ headerSubtitle() }}
@@ -1024,6 +1035,7 @@ export class ChatWindowComponent
   replyTarget = signal<Message | null>(null);
   editTarget = signal<Message | null>(null);
   typingUsers = signal<Set<number>>(new Set());
+  typingNames = signal<string[]>([]);
   showEmojiPicker = signal(false);
   searchOpen = signal(false);
   searchQuery = "";
@@ -1237,12 +1249,23 @@ export class ChatWindowComponent
           const set = new Set(this.typingUsers());
           set.add(t.senderId);
           this.typingUsers.set(set);
+
+          const member = this.members().find((m) => m.userId === t.senderId);
+          const name =
+            member?.user?.fullName ||
+            member?.user?.username ||
+            `User ${t.senderId}`;
+          this.typingNames.update((names) =>
+            names.includes(name) ? names : [...names, name],
+          );
+
           const existing = this.typingUserTimers.get(t.senderId);
           if (existing) clearTimeout(existing);
           const timer = setTimeout(() => {
             const s = new Set(this.typingUsers());
             s.delete(t.senderId);
             this.typingUsers.set(s);
+            this.typingNames.update((names) => names.filter((n) => n !== name));
             this.cdr.markForCheck();
           }, 3000);
           this.typingUserTimers.set(t.senderId, timer);
