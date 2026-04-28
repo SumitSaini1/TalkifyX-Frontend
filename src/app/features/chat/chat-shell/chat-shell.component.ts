@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { FormsModule } from "@angular/forms";
+
 import { Router, RouterLink, RouterOutlet } from "@angular/router";
 import { Subject, takeUntil } from "rxjs";
 import { Room, User } from "../../../core/models";
@@ -26,7 +26,6 @@ import {
     CommonModule,
     RouterOutlet,
     RouterLink,
-    FormsModule,
     NewChatModalComponent,
     NotificationsPanelComponent,
   ],
@@ -129,14 +128,14 @@ import {
             />
           </svg>
           <input
-            [(ngModel)]="searchQuery"
+            [value]="searchQuery()"
             placeholder="Search chats..."
-            (input)="onSearch()"
+            (input)="searchQuery.set($any($event.target).value)"
           />
-          @if (searchQuery) {
+          @if (searchQuery()) {
             <button
               class="clear-search"
-              (click)="searchQuery = ''; loadRooms()"
+              (click)="searchQuery.set(''); loadRooms()"
             >
               <svg viewBox="0 0 20 20" fill="currentColor">
                 <path
@@ -170,7 +169,7 @@ import {
                   opacity=".3"
                 />
               </svg>
-              <p>{{ searchQuery ? "No chats found" : "No chats yet" }}</p>
+             <p>{{ searchQuery() ? "No chats found" : "No chats yet" }}</p>
               <button class="start-btn" (click)="showNewChat.set(true)">
                 Start a conversation
               </button>
@@ -726,7 +725,7 @@ import {
 export class ChatShellComponent implements OnInit, OnDestroy {
   rooms = signal<Room[]>([]);
   loading = signal(true);
-  searchQuery = "";
+  searchQuery = signal("");
   activeRoomId = signal<number | null>(null);
   showNewChat = signal(false);
   showNotifications = signal(false);
@@ -743,10 +742,10 @@ export class ChatShellComponent implements OnInit, OnDestroy {
   me = this.auth.currentUser;
 
   filteredRooms = computed(() => {
-    const q = this.searchQuery.toLowerCase();
+    const q = this.searchQuery().toLowerCase();
     if (!q) return this.rooms();
     return this.rooms().filter((r) =>
-      this.getRoomName(r).toLowerCase().includes(q),
+      this.getRoomName(r).toLowerCase().startsWith(q),
     );
   });
 
