@@ -11,6 +11,7 @@ import { MessageService } from '../../../core/services/message.service';
 import { RoomService } from '../../../core/services/room.service';
 import { WebSocketService, WsEvent } from '../../../core/services/websocket.service';
 import { MediaService } from '../../../core/services/media.service';
+import { PresenceService } from '../../../core/services/presence.service';
 import { Message, Room, RoomMember, MessageRequest, ChatPayload, TypingPayload, ReadReceiptPayload } from '../../../core/models';
 import { MessageBubbleComponent } from '../message-bubble/message-bubble.component';
 import { RoomInfoComponent } from '../room-info/room-info.component';
@@ -418,6 +419,7 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
     private roomService: RoomService,
     private ws: WebSocketService,
     private mediaService: MediaService,
+    private presenceService: PresenceService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -449,7 +451,26 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.room.set(r);
         this.ws.subscribeToRoom(roomId);
         this.loadMessages(roomId, 0);
-        this.roomService.getMembers(roomId).subscribe(m => this.members.set(m));
+        this.roomService.getMembers(roomId).subscribe(members => {
+          this.members.set(members);
+          // Build presenceMap for all members
+          const memberUserIds = members.map(m => m.userId);
+          if (memberUserIds.length) {
+            this.presenceService.getBulk(memberUserIds).subscribe({
+              next: presences => {
+                const map = new Map<number, string>();
+                presences.forEach(p => map.set(p.userId, p.status));
+                this.presenceMapRef.set(map);
+                // For DM, set the other user's status directly
+                if (r.type === 'DM' && r.otherUser) {
+                  this.presenceStatus.set(map.get(r.otherUser.id) ?? 'OFFLINE');
+                }
+                this.cdr.markForCheck();
+              },
+              error: () => {}
+            });
+          }
+        });
       },
       error: () => this.loading.set(false)
     });
@@ -490,13 +511,28 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (evt.kind === 'MESSAGE') {
       const msg = evt.data as Message;
       if (msg.roomId === roomId) {
-        this.messages.update(m => [...m, msg]);
-        this.rebuildGroups();
-        this.shouldScrollBottom = this.isAtBottom;
-        this.cdr.markForCheck();
-        // Send read receipt
-        if (msg.senderId !== this.myId()) {
-          this.ws.sendReadReceipt({ type: 'READ_RECEIPT', roomId, messageId: msg.messageId });
+        const existing = this.messages().find(m => m.messageId === msg.messageId);
+        if (existing) {
+          // WS echo of our own message — flip SENT → DELIVERED
+          if (msg.senderId === this.myId()) {
+            this.messages.update(msgs => msgs.map(m =>
+              m.messageId === msg.messageId
+                ? { ...m, deliveryStatus: 'DELIVERED' as any }
+                : m
+            ));
+            this.rebuildGroups();
+            this.cdr.markForCheck();
+          }
+        } else {
+          // New message from someone else
+          this.messages.update(m => [...m, msg]);
+          this.rebuildGroups();
+          this.shouldScrollBottom = this.isAtBottom;
+          this.cdr.markForCheck();
+          // Send read receipt immediately since window is open
+          if (msg.senderId !== this.myId()) {
+            this.ws.sendReadReceipt({ type: 'READ_RECEIPT', roomId, messageId: msg.messageId });
+          }
         }
       }
     } else if (evt.kind === 'TYPING') {
@@ -520,11 +556,17 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
     } else if (evt.kind === 'READ') {
       const r = evt.data as ReadReceiptPayload;
       if (r.roomId === roomId) {
-        this.messages.update(msgs => msgs.map(m =>
-          m.messageId === r.upToMessageId || m.deliveryStatus !== 'READ'
-            ? { ...m, deliveryStatus: 'READ' as any }
-            : m
-        ));
+        // Mark all messages up to and including upToMessageId as READ
+        let reached = false;
+        this.messages.update(msgs =>
+          [...msgs].reverse().map(m => {
+            if (m.messageId === r.upToMessageId) reached = true;
+            if (reached && m.senderId === this.myId()) {
+              return { ...m, deliveryStatus: 'READ' as any };
+            }
+            return m;
+          }).reverse()
+        );
         this.rebuildGroups();
         this.cdr.markForCheck();
       }
@@ -547,6 +589,18 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.cdr.markForCheck();
       }
     } else if (evt.kind === 'REACTION') {
+      this.cdr.markForCheck();
+    } else if (evt.kind === 'PRESENCE') {
+      const p = evt.data as any;
+      // Update presenceMap
+      const map = new Map(this.presenceMapRef());
+      map.set(p.userId, p.status);
+      this.presenceMapRef.set(map);
+      // If it's the other user in a DM, update header status
+      const r = this.room();
+      if (r?.type === 'DM' && r.otherUser?.id === p.userId) {
+        this.presenceStatus.set(p.status);
+      }
       this.cdr.markForCheck();
     }
   }
@@ -836,8 +890,16 @@ export class ChatWindowComponent implements OnInit, OnDestroy, AfterViewChecked 
   roomAvatarUrl(): string {
     const r = this.room();
     if (!r) return '';
+    if (r.type === 'DM' && r.otherUser) {
+      if (r.otherUser.avatarUrl) return r.otherUser.avatarUrl;
+      const initial = (r.otherUser.fullName || r.otherUser.username || '?').charAt(0).toUpperCase();
+      const svg = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#EDE8FF"/><text x="20" y="26" text-anchor="middle" fill="#7C3AED" font-family="system-ui" font-size="15" font-weight="700">${initial}</text></svg>`;
+      return `data:image/svg+xml;base64,${btoa(svg)}`;
+    }
     if (r.avatarUrl) return r.avatarUrl;
-    return 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNDAgNDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNFREU4RkYiLz48dGV4dCB4PSIyMCIgeT0iMjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM3QzNBRUQiIGZvbnQtZmFtaWx5PSJzeXN0ZW0tdWkiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSI3MDAiPlQ8L3RleHQ+PC9zdmc+';
+    const initial = (r.name || '?').charAt(0).toUpperCase();
+    const svg = `<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="20" fill="#EDE8FF"/><text x="20" y="26" text-anchor="middle" fill="#7C3AED" font-family="system-ui" font-size="15" font-weight="700">${initial}</text></svg>`;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
   }
 
   headerSubtitle(): string {

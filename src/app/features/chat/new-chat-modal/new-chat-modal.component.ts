@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, signal, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, Input, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../core/services/auth.service';
@@ -246,6 +246,7 @@ import { debounceTime, Subject } from 'rxjs';
   `]
 })
 export class NewChatModalComponent implements OnInit {
+  @Input() existingRooms: Room[] = [];
   @Output() close = new EventEmitter<void>();
   @Output() roomCreated = new EventEmitter<Room>();
 
@@ -303,6 +304,16 @@ export class NewChatModalComponent implements OnInit {
     const other = this.selectedDmUser();
     const myId = this.auth.getUserId();
     if (!other || !myId) return;
+
+    // If a DM with this user already exists, open it instead of creating a new one
+    const existing = this.existingRooms.find(
+      r => r.type === 'DM' && r.otherUser?.id === other.id
+    );
+    if (existing) {
+      this.roomCreated.emit(existing);
+      return;
+    }
+
     this.creating.set(true); this.error.set('');
     const req: RoomRequest = { name: `dm_${myId}_${other.id}`, type: 'DM', isPrivate: true };
     this.roomService.createRoom(req).subscribe({

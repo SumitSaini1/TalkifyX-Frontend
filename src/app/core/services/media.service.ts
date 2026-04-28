@@ -18,13 +18,20 @@ export class MediaService {
     return this.http.post<MediaFile>(`${this.base}/upload`, fd);
   }
 
-  uploadImage(file: File, roomId: number, messageId?: string): Observable<MediaFile> {
-    const fd = new FormData();
-    fd.append('file', file);
+  uploadImage(file: File, roomId?: number, messageId?: string): Observable<MediaFile> {
+  const fd = new FormData();
+  fd.append('file', file);
+
+  if (roomId !== undefined) {
     fd.append('roomId', String(roomId));
-    if (messageId) fd.append('messageId', messageId);
-    return this.http.post<MediaFile>(`${this.base}/upload/image`, fd);
   }
+
+  if (messageId) {
+    fd.append('messageId', messageId);
+  }
+
+  return this.http.post<MediaFile>(`${this.base}/upload/image`, fd);
+}
 
   getById(mediaId: string): Observable<MediaFile> {
     return this.http.get<MediaFile>(`${this.base}/${mediaId}`);
