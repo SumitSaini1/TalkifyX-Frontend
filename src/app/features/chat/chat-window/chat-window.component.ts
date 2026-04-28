@@ -248,6 +248,7 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
                   (replyTo)="setReply($event)"
                   (edit)="startEdit($event)"
                   (delete)="deleteMsg($event)"
+                  (deleteForMe)="deleteMsgForMe($event)"
                   (react)="sendReaction($event.messageId, $event.emoji)"
                   (imageClick)="openLightbox($event)"
                 />
@@ -1536,6 +1537,17 @@ export class ChatWindowComponent
         this.cdr.markForCheck();
       },
     });
+  }
+  deleteMsgForMe(msg: Message): void {
+    this.messages.update((msgs) =>
+      msgs.map((m) =>
+        m.messageId === msg.messageId
+          ? { ...m, isDeleted: true, content: "This message was deleted" }
+          : m,
+      ),
+    );
+    this.rebuildGroups();
+    this.cdr.markForCheck();
   }
 
   sendReaction(messageId: string, emoji: string): void {
