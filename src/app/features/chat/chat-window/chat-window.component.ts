@@ -1566,14 +1566,23 @@ export class ChatWindowComponent
   closeSearch(): void {
     this.searchOpen.set(false);
     this.searchQuery = "";
+    const roomId = this.room()?.roomId;
+    if (roomId) this.loadMessages(roomId, 0);
   }
 
   onSearch(): void {
     const roomId = this.room()?.roomId;
-    if (!roomId || !this.searchQuery.trim()) return;
-    this.messageService
-      .searchMessages(roomId, this.searchQuery)
-      .subscribe((msgs) => {});
+    if (!roomId || !this.searchQuery.trim()) {
+      this.loadMessages(roomId!, 0);
+      return;
+    }
+    const q = this.searchQuery.toLowerCase();
+    const filtered = this.messages().filter((m) =>
+      m.content?.toLowerCase().startsWith(q),
+    );
+    this.messages.set(filtered);
+    this.rebuildGroups();
+    this.cdr.markForCheck();
   }
 
   openLightbox(url: string): void {
