@@ -400,12 +400,14 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
     }
 
     <!-- Room Info Panel -->
+    <!-- Room Info Panel -->
     @if (showInfo() && room()) {
       <app-room-info
         [room]="room()!"
         [presenceMap]="presenceMapRef()"
         (close)="showInfo.set(false)"
         (imageClick)="openLightbox($event)"
+        (roomAvatarUpdated)="onRoomAvatarUpdated($event)"
       />
     }
   `,
@@ -1610,6 +1612,12 @@ export class ChatWindowComponent
 
   openLightbox(url: string): void {
     this.lightboxUrl.set(url);
+  }
+  onRoomAvatarUpdated(avatarUrl: string): void {
+    this.room.update((r) =>
+      r ? { ...r, avatarUrl: avatarUrl || undefined } : r,
+    );
+    this.cdr.markForCheck();
   }
 
   onScroll(): void {
