@@ -371,7 +371,7 @@ export class NotificationsPanelComponent implements OnInit {
     if (!userId) return;
     this.notifService.getNotifications(userId).subscribe({
       next: (page) => {
-        this.notifications.set(page.content);
+        this.notifications.set(page.content.filter(n => !n.isRead));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -394,7 +394,7 @@ export class NotificationsPanelComponent implements OnInit {
     const userId = this.auth.getUserId();
     if (!userId) return;
     this.notifService.markAllAsRead(userId).subscribe(() => {
-      this.notifications.set([]); // ← clear all
+      this.notifications.set([]);
       this.notifService.unreadCount.set(0);
     });
   }
