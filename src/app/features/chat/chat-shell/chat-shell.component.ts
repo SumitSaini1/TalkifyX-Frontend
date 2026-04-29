@@ -10,6 +10,7 @@ import { RoomService } from "../../../core/services/room.service";
 import { WebSocketService } from "../../../core/services/websocket.service";
 import { NotificationsPanelComponent } from "../../notifications/notifications-panel.component";
 import { NewChatModalComponent } from "../new-chat-modal/new-chat-modal.component";
+import { FcmService } from '../../../core/services/fcm.service';
 import {
   Component,
   OnInit,
@@ -756,6 +757,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
     public notifService: NotificationService,
     private presenceService: PresenceService,
     private router: Router,
+    private fcm: FcmService
   ) {}
 
   ngOnInit(): void {
@@ -766,6 +768,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
     if (userId) {
       this.notifService.getUnreadCount(userId).subscribe();
       this.connectPresence(userId);
+      this.fcm.initFcm(); 
     }
   }
 

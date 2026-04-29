@@ -28,6 +28,7 @@ export class FcmService {
       const token = await getToken(this.messaging, {
         vapidKey: environment.firebase.vapidKey,
       });
+     
 
       if (!token) return;
 
