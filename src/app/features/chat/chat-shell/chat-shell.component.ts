@@ -924,31 +924,50 @@ export class ChatShellComponent implements OnInit, OnDestroy {
         // Chat list: update lastMessageAt + lastMessage without full reload
         const d = evt.data;
         if (d?.roomId) {
-          this.rooms.update((list) =>
-            list.map((r) =>
-              r.roomId === d.roomId
-                ? {
-                    ...r,
-                    lastMessageAt: d.lastMessageAt ?? r.lastMessageAt,
-                    lastMessage: d.lastMessage ?? r.lastMessage,
-                  }
-                : r,
-            ),
-          );
-          // Increment unread if not active room and not own message
-          const msg = d.lastMessage;
-          if (
-            msg &&
-            d.roomId !== this.activeRoomId() &&
-            msg.senderId !== this.auth.getUserId()
-          ) {
+          const roomExists = this.rooms().find((r) => r.roomId === d.roomId);
+          
+          if (!roomExists) {
+            // New chat started by someone else - fetch it and add to list
+            this.roomService.getRoomById(d.roomId).subscribe({
+              next: (room) => {
+                room.lastMessage = d.lastMessage;
+                room.lastMessageAt = d.lastMessageAt;
+                if (d.lastMessage && d.lastMessage.senderId !== this.auth.getUserId()) {
+                  room.unreadCount = 1;
+                }
+                this.rooms.update((list) => [room, ...list]);
+                this.ws.subscribeToRoom(room.roomId);
+              },
+              error: () => {},
+            });
+          } else {
+            // Update existing room
             this.rooms.update((list) =>
               list.map((r) =>
                 r.roomId === d.roomId
-                  ? { ...r, unreadCount: (r.unreadCount || 0) + 1 }
+                  ? {
+                      ...r,
+                      lastMessageAt: d.lastMessageAt ?? r.lastMessageAt,
+                      lastMessage: d.lastMessage ?? r.lastMessage,
+                    }
                   : r,
               ),
             );
+            // Increment unread if not active room and not own message
+            const msg = d.lastMessage;
+            if (
+              msg &&
+              d.roomId !== this.activeRoomId() &&
+              msg.senderId !== this.auth.getUserId()
+            ) {
+              this.rooms.update((list) =>
+                list.map((r) =>
+                  r.roomId === d.roomId
+                    ? { ...r, unreadCount: (r.unreadCount || 0) + 1 }
+                    : r,
+                ),
+              );
+            }
           }
         }
       }
@@ -1016,8 +1035,18 @@ export class ChatShellComponent implements OnInit, OnDestroy {
 
   onRoomCreated(room: Room): void {
     this.showNewChat.set(false);
-    this.rooms.update((r) => [room, ...r]);
-    this.ws.subscribeToRoom(room.roomId);
+    const existingIdx = this.rooms().findIndex((r) => r.roomId === room.roomId);
+    if (existingIdx === -1) {
+      this.rooms.update((r) => [room, ...r]);
+      this.ws.subscribeToRoom(room.roomId);
+    } else {
+      // If it exists (e.g. from WS event), update it with the populated one
+      this.rooms.update((list) => {
+        const updated = [...list];
+        updated[existingIdx] = { ...updated[existingIdx], ...room };
+        return updated;
+      });
+    }
     this.openRoom(room);
   }
 

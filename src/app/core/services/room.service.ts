@@ -115,7 +115,12 @@ export class RoomService {
       this.createRoom(req).subscribe({
         next: (room) => {
           this.addMember(room.roomId, otherUserId).subscribe({
-            next: () => observer.next(room),
+            next: () => {
+              this.getRoomById(room.roomId).subscribe({
+                next: (fullRoom) => observer.next(fullRoom),
+                error: () => observer.next(room)
+              });
+            },
             error: (err) => observer.error(err),
           });
         },
