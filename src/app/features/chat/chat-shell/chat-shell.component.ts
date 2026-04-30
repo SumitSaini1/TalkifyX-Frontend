@@ -899,9 +899,57 @@ export class ChatShellComponent implements OnInit, OnDestroy {
         const msg = evt.data;
         const roomExists = this.rooms().find((r) => r.roomId === msg.roomId);
         if (!roomExists) {
-          this.loadRooms();
+          // Fetch the room data directly rather than reloading everything
+          this.roomService.getRoomById(msg.roomId).subscribe({
+            next: (room) => {
+              this.rooms.update((list) => [room, ...list]);
+              this.ws.subscribeToRoom(room.roomId);
+            },
+            error: () => {},
+          });
         } else {
           this.handleNewMessage(msg);
+        }
+      } else if (evt.kind === "NEW_ROOM") {
+        // A new room was created (e.g. someone started a DM with us)
+        const room = evt.data?.room;
+        if (room) {
+          const roomExists = this.rooms().find((r) => r.roomId === room.roomId);
+          if (!roomExists) {
+            this.rooms.update((list) => [room, ...list]);
+            this.ws.subscribeToRoom(room.roomId);
+          }
+        }
+      } else if (evt.kind === "ROOM_UPDATED") {
+        // Chat list: update lastMessageAt + lastMessage without full reload
+        const d = evt.data;
+        if (d?.roomId) {
+          this.rooms.update((list) =>
+            list.map((r) =>
+              r.roomId === d.roomId
+                ? {
+                    ...r,
+                    lastMessageAt: d.lastMessageAt ?? r.lastMessageAt,
+                    lastMessage: d.lastMessage ?? r.lastMessage,
+                  }
+                : r,
+            ),
+          );
+          // Increment unread if not active room and not own message
+          const msg = d.lastMessage;
+          if (
+            msg &&
+            d.roomId !== this.activeRoomId() &&
+            msg.senderId !== this.auth.getUserId()
+          ) {
+            this.rooms.update((list) =>
+              list.map((r) =>
+                r.roomId === d.roomId
+                  ? { ...r, unreadCount: (r.unreadCount || 0) + 1 }
+                  : r,
+              ),
+            );
+          }
         }
       }
     });

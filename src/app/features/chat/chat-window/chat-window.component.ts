@@ -1173,6 +1173,9 @@ export class ChatWindowComponent
         if (page === 0) {
           this.messages.set(msgs);
           this.shouldScrollBottom = true;
+          // Persist lastReadAt and mark all messages as READ in DB
+          this.roomService.updateLastRead(roomId).subscribe({ error: () => {} });
+          // Also send WS read receipt for the latest message
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.senderId !== this.myId()) {
             this.ws.sendReadReceipt({
@@ -1198,6 +1201,7 @@ export class ChatWindowComponent
       },
     });
   }
+
 
   loadMore(): void {
     if (!this.room() || this.loadingMore()) return;
@@ -1645,10 +1649,13 @@ export class ChatWindowComponent
           roomId: this.room()!.roomId,
           messageId: lastMsg.messageId,
         });
+        // Persist lastReadAt via REST
+        this.roomService.updateLastRead(this.room()!.roomId).subscribe({ error: () => {} });
       }
     }
     this.isAtBottom = atBottom;
   }
+
 
   private scrollToBottom(): void {
     try {
