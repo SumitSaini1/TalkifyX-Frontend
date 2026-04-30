@@ -7,7 +7,7 @@ import {
   signal,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { Room, RoomMember, User } from "../../../core/models";
+import { Room, RoomMember } from "../../../core/models";
 import { RoomService } from "../../../core/services/room.service";
 import { AuthService } from "../../../core/services/auth.service";
 import { MediaService } from "../../../core/services/media.service";
@@ -20,6 +20,7 @@ import { MediaFile } from "../../../core/models";
   template: `
     <div class="panel-overlay" (click)="onOverlayClick($event)">
       <div class="info-panel glass" (click)="$event.stopPropagation()">
+        <!-- Header -->
         <div class="panel-header">
           <h3>{{ room.type === "DM" ? "Contact Info" : "Group Info" }}</h3>
           <button class="close-btn" (click)="close.emit()">
@@ -33,15 +34,41 @@ import { MediaFile } from "../../../core/models";
           </button>
         </div>
 
-        <!-- Room / Contact header -->
+        <!-- Room Hero -->
         <div class="room-hero">
-          <img [src]="heroAvatar()" class="hero-avatar" [alt]="heroName()" />
+          <div class="hero-avatar-wrap">
+            <img [src]="heroAvatar()" class="hero-avatar" [alt]="heroName()" />
+            @if (room.type === "GROUP" && isAdmin()) {
+              <label class="avatar-upload-btn" title="Change group photo">
+                @if (uploadingAvatar()) {
+                  <span class="mini-spinner"></span>
+                } @else {
+                  <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z"
+                    />
+                  </svg>
+                }
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  (change)="onAvatarFileSelected($event)"
+                />
+              </label>
+            }
+          </div>
           <h2>{{ heroName() }}</h2>
           @if (room.description) {
             <p class="hero-desc">{{ room.description }}</p>
           }
           @if (room.type === "GROUP") {
             <span class="member-count-tag">{{ members().length }} members</span>
+          }
+          @if (room.type === "GROUP" && isAdmin() && room.avatarUrl) {
+            <button class="remove-avatar-btn" (click)="removeAvatar()">
+              Remove photo
+            </button>
           }
         </div>
 
@@ -246,6 +273,11 @@ import { MediaFile } from "../../../core/models";
         padding: 24px 16px 16px;
         border-bottom: 1px solid rgba(124, 58, 237, 0.06);
         gap: 8px;
+        flex-shrink: 0;
+      }
+      .hero-avatar-wrap {
+        position: relative;
+        display: inline-block;
       }
       .hero-avatar {
         width: 80px;
@@ -253,6 +285,25 @@ import { MediaFile } from "../../../core/models";
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid rgba(124, 58, 237, 0.2);
+      }
+      .avatar-upload-btn {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #7c3aed;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid white;
+      }
+      .avatar-upload-btn svg {
+        width: 13px;
+        height: 13px;
       }
       .room-hero h2 {
         font-size: 1.15rem;
@@ -274,6 +325,15 @@ import { MediaFile } from "../../../core/models";
         padding: 3px 10px;
         border-radius: 20px;
         font-weight: 600;
+      }
+      .remove-avatar-btn {
+        font-size: 0.75rem;
+        color: #ef4444;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 0;
       }
       .info-tabs {
         display: flex;
@@ -481,6 +541,7 @@ export class RoomInfoComponent implements OnInit {
   @Input() presenceMap: Map<number, string> = new Map();
   @Output() close = new EventEmitter<void>();
   @Output() imageClick = new EventEmitter<string>();
+  @Output() roomAvatarUpdated = new EventEmitter<string>();
 
   tab = signal<"members" | "media">("members");
   members = signal<RoomMember[]>([]);
@@ -488,6 +549,7 @@ export class RoomInfoComponent implements OnInit {
   loadingMembers = signal(true);
   loadingMedia = signal(false);
   mediaLoaded = false;
+  uploadingAvatar = signal(false);
 
   constructor(
     private roomService: RoomService,
@@ -522,10 +584,64 @@ export class RoomInfoComponent implements OnInit {
     return this.auth.getUserId();
   }
 
+  isAdmin(): boolean {
+    return this.members().some(
+      (m) => m.userId === this.myId() && m.role === "ADMIN",
+    );
+  }
+
+  onAvatarFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    this.uploadingAvatar.set(true);
+    this.mediaService.uploadImage(file, this.room.roomId).subscribe({
+      next: (media) => {
+        console.log("[Avatar] media uploaded:", media);
+        this.roomService
+          .updateRoom(this.room.roomId, {
+            avatarUrl: media.url,
+            name: this.room.name,
+            type: this.room.type,
+          })
+          .subscribe({
+            next: (updated) => {
+              console.log("[Avatar] room updated:", updated);
+              this.room = { ...this.room, avatarUrl: updated.avatarUrl };
+              this.roomAvatarUpdated.emit(updated.avatarUrl || '');
+              this.uploadingAvatar.set(false);
+            },
+            error: (err) => {
+              console.error("[Avatar] updateRoom error:", err);
+              this.uploadingAvatar.set(false);
+            },
+          });
+      },
+      error: (err) => {
+        console.error("[Avatar] upload error:", err);
+        this.uploadingAvatar.set(false);
+      },
+    });
+  }
+
+  removeAvatar(): void {
+    this.roomService
+      .updateRoom(this.room.roomId, {
+        avatarUrl: "",
+        name: this.room.name,
+        type: this.room.type,
+      })
+      .subscribe({
+        next: () => {
+          this.room = { ...this.room, avatarUrl: undefined };
+          this.roomAvatarUpdated.emit('');
+        },
+      });
+  }
+
   heroName(): string {
-    if (this.room.type === "DM" && this.room.otherUser) {
+    if (this.room.type === "DM" && this.room.otherUser)
       return this.room.otherUser.fullName || this.room.otherUser.username;
-    }
     return this.room.name;
   }
 
@@ -558,6 +674,7 @@ export class RoomInfoComponent implements OnInit {
     if ((e.target as HTMLElement).classList.contains("panel-overlay"))
       this.close.emit();
   }
+
   sortedMembers(): RoomMember[] {
     const members = this.members();
     if (this.room.type === "DM") return members;
