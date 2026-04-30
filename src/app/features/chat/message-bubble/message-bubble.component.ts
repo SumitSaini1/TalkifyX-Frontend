@@ -29,17 +29,9 @@ import { Message, RoomMember } from "../../../core/models";
       }
 
       <div class="msg-col" [class.own-col]="isOwn">
-        <!-- Sender name -->
+        <!-- Sender name (group chats) -->
         @if (!isOwn) {
           <span class="sender-name">{{ senderName() }}</span>
-        }
-
-        <!-- Reply preview -->
-        @if (message.replyToMessageId && !message.isDeleted) {
-          <div class="reply-preview-bubble" [class.own-reply]="isOwn">
-            <div class="reply-bar-mini"></div>
-            <span class="reply-preview-text">Replied to a message</span>
-          </div>
         }
 
         <!-- Bubble row -->
@@ -101,6 +93,29 @@ import { Message, RoomMember } from "../../../core/models";
             [class.own-bubble]="isOwn"
             [class.deleted-bubble]="message.isDeleted"
           >
+            <!-- ✅ Reply preview INSIDE bubble (WhatsApp-style) -->
+            @if (message.replyToMessageId && !message.isDeleted) {
+              <div class="reply-quote" [class.own-quote]="isOwn">
+                <div class="reply-quote-bar"></div>
+                <div class="reply-quote-body">
+                  <span class="reply-quote-author">
+                    {{ message.replyToMessage?.senderName || 'Original message' }}
+                  </span>
+                  <span class="reply-quote-text">
+                    @if (message.replyToMessage?.isDeleted) {
+                      🚫 This message was deleted
+                    } @else if (message.replyToMessage?.type === 'IMAGE') {
+                      📷 Photo
+                    } @else if (message.replyToMessage?.type === 'FILE') {
+                      📎 {{ message.replyToMessage?.content || 'File' }}
+                    } @else {
+                      {{ message.replyToMessage?.content || '...' }}
+                    }
+                  </span>
+                </div>
+              </div>
+            }
+
             @if (message.isDeleted) {
               <span class="deleted-text">
                 <svg viewBox="0 0 16 16" fill="currentColor" style="width:12px;height:12px;margin-right:4px">
@@ -216,20 +231,33 @@ import { Message, RoomMember } from "../../../core/models";
       font-size: 0.72rem; font-weight: 700;
       color: #7c3aed; padding: 0 12px; margin-bottom: 2px;
     }
-    .reply-preview-bubble {
-      display: flex; align-items: center; gap: 6px;
-      background: rgba(124,58,237,0.06); border-radius: 8px;
-      padding: 4px 10px; margin-bottom: 2px; max-width: 100%;
+    /* ===== Reply quote INSIDE bubble (WhatsApp-style) ===== */
+    .reply-quote {
+      display: flex; align-items: stretch; gap: 0;
+      background: rgba(0,0,0,0.06);
+      border-radius: 8px; margin-bottom: 6px;
+      overflow: hidden; cursor: default;
     }
-    .own-reply { background: rgba(255,255,255,0.2); }
-    .reply-bar-mini {
-      width: 2px; height: 20px; background: #7c3aed;
-      border-radius: 1px; flex-shrink: 0;
+    .own-quote { background: rgba(0,0,0,0.12); }
+    .reply-quote-bar {
+      width: 3px; background: rgba(255,255,255,0.8); flex-shrink: 0;
     }
-    .reply-preview-text {
-      font-size: 0.75rem; color: #7c3aed;
+    .reply-quote:not(.own-quote) .reply-quote-bar { background: #7c3aed; }
+    .reply-quote-body {
+      display: flex; flex-direction: column; gap: 1px;
+      padding: 5px 8px; min-width: 0; overflow: hidden;
+    }
+    .reply-quote-author {
+      font-size: 0.72rem; font-weight: 700;
+      color: rgba(255,255,255,0.95);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .reply-quote:not(.own-quote) .reply-quote-author { color: #7c3aed; }
+    .reply-quote-text {
+      font-size: 0.78rem; color: rgba(255,255,255,0.78);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .reply-quote:not(.own-quote) .reply-quote-text { color: #4b5563; }
     .bubble-wrap {
       position: relative; display: flex;
       align-items: center; gap: 6px;
