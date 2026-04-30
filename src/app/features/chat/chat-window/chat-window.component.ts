@@ -1122,6 +1122,7 @@ export class ChatWindowComponent
   private loadRoom(roomId: number): void {
     this.loading.set(true);
     this.messages.set([]);
+    this.messageGroups.set([]);
     this.currentPage.set(0);
     this.shouldScrollBottom = true;
 
@@ -1504,7 +1505,7 @@ export class ChatWindowComponent
         this.editTarget.set(null);
         this.messageText = "";
         this.sending.set(false);
-        this.ws.sendMessage({
+        this.ws.sendEdit({
           type: "MESSAGE_EDIT",
           roomId: this.room()!.roomId,
           messageId: target.messageId,
@@ -1533,7 +1534,7 @@ export class ChatWindowComponent
           ),
         );
         this.rebuildGroups();
-        this.ws.sendMessage({
+        this.ws.sendDelete({
           type: "MESSAGE_DELETE",
           roomId: this.room()!.roomId,
           deletedId: msg.messageId,

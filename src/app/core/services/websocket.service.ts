@@ -182,6 +182,24 @@ export class WebSocketService implements OnDestroy {
     });
   }
 
+  sendEdit(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.edit",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  sendDelete(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.delete",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
   sendReadReceipt(payload: ChatPayload): void {
     if (!this.connected) return;
     this.client.publish({
