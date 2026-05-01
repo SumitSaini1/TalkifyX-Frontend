@@ -953,21 +953,9 @@ export class ChatShellComponent implements OnInit, OnDestroy {
                   : r,
               ),
             );
-            // Increment unread if not active room and not own message
-            const msg = d.lastMessage;
-            if (
-              msg &&
-              d.roomId !== this.activeRoomId() &&
-              msg.senderId !== this.auth.getUserId()
-            ) {
-              this.rooms.update((list) =>
-                list.map((r) =>
-                  r.roomId === d.roomId
-                    ? { ...r, unreadCount: (r.unreadCount || 0) + 1 }
-                    : r,
-                ),
-              );
-            }
+            // We intentionally do NOT increment unreadCount here for existing rooms
+            // because handleNewMessage (which processes the "MESSAGE" event) 
+            // already increments the unreadCount. Doing it in both places causes double counting.
           }
         }
       }

@@ -1320,13 +1320,19 @@ export class ChatWindowComponent
       const p = evt.data as any;
       if (p.roomId === roomId) {
         this.zone.run(() => {
-          this.messages.update((msgs) =>
-            msgs.map((m) =>
-              m.messageId === p.deletedId
-                ? { ...m, isDeleted: true, content: "This message was deleted" }
-                : m,
-            ),
-          );
+          if (p.deleteType === 'ME') {
+            this.messages.update((msgs) =>
+              msgs.filter((m) => m.messageId !== p.deletedId)
+            );
+          } else {
+            this.messages.update((msgs) =>
+              msgs.map((m) =>
+                m.messageId === p.deletedId
+                  ? { ...m, isDeleted: true, content: "This message was deleted" }
+                  : m,
+              ),
+            );
+          }
           this.rebuildGroups();
           this.cdr.markForCheck();
         });
@@ -1523,8 +1529,8 @@ export class ChatWindowComponent
   }
 
   deleteMsg(msg: Message): void {
-    if (!confirm("Delete this message?")) return;
-    this.messageService.deleteMessage(msg.messageId).subscribe({
+    if (!confirm("Delete this message for everyone?")) return;
+    this.messageService.deleteMessage(msg.messageId, 'EVERYONE').subscribe({
       next: () => {
         this.messages.update((msgs) =>
           msgs.map((m) =>
@@ -1538,21 +1544,31 @@ export class ChatWindowComponent
           type: "MESSAGE_DELETE",
           roomId: this.room()!.roomId,
           deletedId: msg.messageId,
+          deleteType: "EVERYONE",
         });
         this.cdr.markForCheck();
       },
     });
   }
+
   deleteMsgForMe(msg: Message): void {
-    this.messages.update((msgs) =>
-      msgs.map((m) =>
-        m.messageId === msg.messageId
-          ? { ...m, isDeleted: true, content: "This message was deleted" }
-          : m,
-      ),
-    );
-    this.rebuildGroups();
-    this.cdr.markForCheck();
+    if (!confirm("Delete this message for yourself?")) return;
+    this.messageService.deleteMessage(msg.messageId, 'ME').subscribe({
+      next: () => {
+        // Remove from UI completely
+        this.messages.update((msgs) =>
+          msgs.filter((m) => m.messageId !== msg.messageId)
+        );
+        this.rebuildGroups();
+        this.ws.sendDelete({
+          type: "MESSAGE_DELETE",
+          roomId: this.room()!.roomId,
+          deletedId: msg.messageId,
+          deleteType: "ME",
+        });
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   sendReaction(messageId: string, emoji: string): void {
