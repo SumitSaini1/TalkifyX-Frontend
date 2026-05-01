@@ -1463,21 +1463,15 @@ export class ChatWindowComponent
         await new Promise<void>((resolve, reject) => {
           upload$.subscribe({
             next: (media) => {
-              const req: MessageRequest = {
+              this.ws.sendMessage({
+                type: "CHAT_MESSAGE",
                 roomId,
-                type: pf.isImage ? "IMAGE" : "FILE",
-                mediaUrl: media.url,
                 content: pf.file.name,
-              };
-              this.messageService.sendMessage(req).subscribe({
-                next: (msg) => {
-                  this.messages.update((m) => [...m, msg]);
-                  this.rebuildGroups();
-                  this.shouldScrollBottom = true;
-                  resolve();
-                },
-                error: reject,
+                messageType: pf.isImage ? "IMAGE" : "FILE",
+                mediaUrl: media.url,
+                replyToId: this.replyTarget()?.messageId,
               });
+              resolve();
             },
             error: reject,
           });
@@ -1488,20 +1482,17 @@ export class ChatWindowComponent
     }
     this.pendingFiles.set([]);
     if (this.messageText.trim()) {
-      const req: MessageRequest = {
+      this.ws.sendMessage({
+        type: "CHAT_MESSAGE",
         roomId,
         content: this.messageText.trim(),
-        type: "TEXT",
-      };
-      this.messageService.sendMessage(req).subscribe({
-        next: (msg) => {
-          this.messages.update((m) => [...m, msg]);
-          this.rebuildGroups();
-        },
+        replyToId: this.replyTarget()?.messageId,
       });
       this.messageText = "";
     }
+    this.replyTarget.set(null);
     this.sending.set(false);
+    this.resetTextarea();
     this.cdr.markForCheck();
   }
 

@@ -155,6 +155,8 @@ export interface ChatPayload {
   senderName?: string;
   senderAvatar?: string;
   deleteType?: 'ME' | 'EVERYONE';
+  messageType?: string;
+  mediaUrl?: string;
 }
 export interface TypingPayload {
   senderId: number;
