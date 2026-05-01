@@ -67,7 +67,7 @@ import { Message, RoomMember } from "../../../core/models";
                     </svg>
                     Delete
                   </button>
-                  <button class="dd-item" (click)="showReactPicker.set(!showReactPicker()); showMenu.set(false)">
+                  <button class="dd-item" (click)="$event.stopPropagation(); showReactPicker.set(!showReactPicker()); showMenu.set(false)">
                     <svg viewBox="0 0 20 20" fill="currentColor">
                       <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd"/>
                     </svg>
@@ -80,7 +80,7 @@ import { Message, RoomMember } from "../../../core/models";
 
           <!-- React picker -->
           @if (showReactPicker()) {
-            <div class="react-picker" [class.own-react]="isOwn">
+            <div class="react-picker" [class.own-react]="isOwn" (click)="$event.stopPropagation()">
               @for (em of quickEmojis; track em) {
                 <button class="react-em" (click)="onReact(em)">{{ em }}</button>
               }
@@ -181,7 +181,11 @@ import { Message, RoomMember } from "../../../core/models";
         @if (message.reactions && message.reactions.length > 0) {
           <div class="reactions-row" [class.own-reactions]="isOwn">
             @for (r of message.reactions; track r.emoji) {
-              <span class="reaction-chip">{{ r.emoji }} {{ r.count }}</span>
+              <button
+                class="reaction-chip"
+                [class.my-reaction]="myId && r.userIds.includes(myId)"
+                [title]="r.count + ' reaction(s)'"
+                (click)="onReact(r.emoji)">{{ r.emoji }} {{ r.count }}</button>
             }
           </div>
         }
@@ -397,6 +401,17 @@ import { Message, RoomMember } from "../../../core/models";
       border-radius: 20px; padding: 2px 8px;
       font-size: 0.8rem; cursor: pointer;
       box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      transition: all 0.15s;
+    }
+    .reaction-chip:hover {
+      background: rgba(124,58,237,0.08);
+      border-color: rgba(124,58,237,0.35);
+      transform: scale(1.08);
+    }
+    .reaction-chip.my-reaction {
+      background: rgba(124,58,237,0.12);
+      border-color: rgba(124,58,237,0.5);
+      font-weight: 700;
     }
     .msg-row.deleted { opacity: 0.6; }
 
@@ -433,6 +448,7 @@ export class MessageBubbleComponent {
   @Input() isOwn = false;
   @Input() members: RoomMember[] = [];
   @Input() replyTarget: Message | null = null;
+  @Input() myId: number | null = null;
 
   @Output() replyTo = new EventEmitter<Message>();
   @Output() edit = new EventEmitter<Message>();
@@ -462,8 +478,7 @@ export class MessageBubbleComponent {
 
   onMouseLeave(): void {
     this.hovered.set(false);
-    this.showMenu.set(false);
-    this.showReactPicker.set(false);
+    // Do not auto-close menus on mouse leave, let document click handle it
   }
 
   openDeleteModal(): void {

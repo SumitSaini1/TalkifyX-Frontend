@@ -245,6 +245,7 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
                   [isOwn]="msg.senderId === myId()"
                   [members]="members()"
                   [replyTarget]="replyTarget()"
+                  [myId]="myId()"
                   (replyTo)="setReply($event)"
                   (edit)="startEdit($event)"
                   (delete)="deleteMsg($event)"
@@ -1338,7 +1339,20 @@ export class ChatWindowComponent
         });
       }
     } else if (evt.kind === "REACTION") {
-      this.zone.run(() => this.cdr.markForCheck());
+      const p = evt.data as any;
+      if (p.roomId === roomId || p.messageId) {
+        this.zone.run(() => {
+          this.messages.update((msgs) =>
+            msgs.map((m) =>
+              m.messageId === p.messageId
+                ? { ...m, reactions: p.reactions ?? [] }
+                : m
+            )
+          );
+          this.rebuildGroups();
+          this.cdr.markForCheck();
+        });
+      }
     } else if (evt.kind === "PRESENCE") {
       const p = evt.data as any;
       this.zone.run(() => {
@@ -1573,8 +1587,59 @@ export class ChatWindowComponent
 
   sendReaction(messageId: string, emoji: string): void {
     const roomId = this.room()?.roomId;
-    if (!roomId) return;
-    this.ws.sendMessage({ type: "REACTION", roomId, messageId, emoji });
+    const userId = this.myId();
+    if (!roomId || !userId) return;
+
+    // Optimistic update: toggle/add/switch reaction immediately
+    this.messages.update((msgs) =>
+      msgs.map((m) => {
+        if (m.messageId !== messageId) return m;
+        const reactions = [...(m.reactions ?? [])];
+        const existing = reactions.find((r) => r.userIds.includes(userId));
+        if (existing) {
+          if (existing.emoji === emoji) {
+            // Toggle off
+            const newUserIds = existing.userIds.filter((id) => id !== userId);
+            if (newUserIds.length === 0) {
+              return { ...m, reactions: reactions.filter((r) => r.emoji !== emoji) };
+            }
+            return { ...m, reactions: reactions.map((r) => r.emoji === emoji ? { ...r, count: newUserIds.length, userIds: newUserIds } : r) };
+          } else {
+            // Remove from old, add to new
+            const cleaned = reactions.map((r) => {
+              if (r.emoji === existing.emoji) {
+                const newIds = r.userIds.filter((id) => id !== userId);
+                return newIds.length ? { ...r, count: newIds.length, userIds: newIds } : null;
+              }
+              if (r.emoji === emoji) {
+                const newIds = [...r.userIds, userId];
+                return { ...r, count: newIds.length, userIds: newIds };
+              }
+              return r;
+            }).filter(Boolean) as any[];
+            const hasNew = cleaned.some((r) => r.emoji === emoji);
+            if (!hasNew) cleaned.push({ emoji, count: 1, userIds: [userId] });
+            return { ...m, reactions: cleaned };
+          }
+        } else {
+          const existing2 = reactions.find((r) => r.emoji === emoji);
+          if (existing2) {
+            return { ...m, reactions: reactions.map((r) => r.emoji === emoji ? { ...r, count: r.userIds.length + 1, userIds: [...r.userIds, userId] } : r) };
+          }
+          return { ...m, reactions: [...reactions, { emoji, count: 1, userIds: [userId] }] };
+        }
+      })
+    );
+    this.rebuildGroups();
+    this.cdr.markForCheck();
+
+    // Send to backend via WebSocket
+    this.ws.sendReact({
+      type: "REACTION",
+      roomId,
+      messageId,
+      emoji,
+    });
   }
 
   setReply(msg: Message): void {

@@ -144,7 +144,7 @@ export class WebSocketService implements OnDestroy {
         this.events$.next({ kind: "MSG_EDIT", data });
       } else if (data.type === "MESSAGE_DELETE") {
         this.events$.next({ kind: "MSG_DELETE", data });
-      } else if (data.type === "REACTION") {
+      } else if (data.type === "REACTION" || data.eventType === "REACTION") {
         this.events$.next({ kind: "REACTION", data });
       } else if (
         data.isTyping !== undefined ||
@@ -204,6 +204,15 @@ export class WebSocketService implements OnDestroy {
     if (!this.connected) return;
     this.client.publish({
       destination: "/app/chat.read",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  sendReact(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.react",
       headers: { "X-User-Id": String(this.auth.getUserId()) },
       body: JSON.stringify(payload),
     });
