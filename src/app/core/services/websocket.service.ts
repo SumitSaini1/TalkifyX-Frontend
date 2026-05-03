@@ -82,7 +82,7 @@ export class WebSocketService implements OnDestroy {
   subscribeToRoom(roomId: number): void {
     if (this.roomSubscriptions.has(roomId)) return;
     if (!this.connected) {
-      // Queue subscription until CONNECTED fires
+      
       const unsub = this.events$.subscribe((evt) => {
         if (evt.kind === "CONNECTED") {
           unsub.unsubscribe();
@@ -120,7 +120,7 @@ export class WebSocketService implements OnDestroy {
     const sub = this.client.subscribe(
       `/topic/user/${userId}`,
       (msg: IMessage) => {
-        // Route through handleRoomMessage so all event types are detected correctly
+        
         this.handleRoomMessage(msg);
       },
     );

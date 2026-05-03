@@ -478,7 +478,7 @@ export class MessageBubbleComponent {
 
   onMouseLeave(): void {
     this.hovered.set(false);
-    // Do not auto-close menus on mouse leave, let document click handle it
+    
   }
 
   openDeleteModal(): void {
