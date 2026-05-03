@@ -44,8 +44,10 @@ export class MessageService {
     });
   }
 
-  deleteMessage(messageId: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/${messageId}`);
+  deleteMessage(messageId: string, type: 'ME' | 'EVERYONE' = 'EVERYONE'): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${messageId}`, {
+      params: { type },
+    });
   }
 
   searchMessages(roomId: number, keyword: string): Observable<Message[]> {

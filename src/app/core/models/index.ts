@@ -152,8 +152,11 @@ export interface ChatPayload {
   deletedId?: string;
   emoji?: string;
   upToMessageId?: string; 
-  senderName?: string;   // ADD
+  senderName?: string;
   senderAvatar?: string;
+  deleteType?: 'ME' | 'EVERYONE';
+  messageType?: string;
+  mediaUrl?: string;
 }
 export interface TypingPayload {
   senderId: number;

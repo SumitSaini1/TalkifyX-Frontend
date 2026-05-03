@@ -14,7 +14,7 @@ export const errorInterceptor: HttpInterceptorFn = (
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
       if (error.status === 401) {
-        // Token expired or invalid → log out
+       
         localStorage.removeItem('talkifyx_token');
         localStorage.removeItem('talkifyx_user');
         auth.isAuthenticated.set(false);

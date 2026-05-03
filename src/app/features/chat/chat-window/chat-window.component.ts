@@ -61,6 +61,7 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
         <div class="header-avatar-wrap">
           <img
             [src]="roomAvatarUrl()"
+            (error)="$any($event.target).src = roomAvatarUrl()"
             class="header-avatar"
             [alt]="roomName()"
           />
@@ -245,9 +246,11 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
                   [isOwn]="msg.senderId === myId()"
                   [members]="members()"
                   [replyTarget]="replyTarget()"
+                  [myId]="myId()"
                   (replyTo)="setReply($event)"
                   (edit)="startEdit($event)"
                   (delete)="deleteMsg($event)"
+                  (deleteForMe)="deleteMsgForMe($event)"
                   (react)="sendReaction($event.messageId, $event.emoji)"
                   (imageClick)="openLightbox($event)"
                 />
@@ -1121,6 +1124,7 @@ export class ChatWindowComponent
   private loadRoom(roomId: number): void {
     this.loading.set(true);
     this.messages.set([]);
+    this.messageGroups.set([]);
     this.currentPage.set(0);
     this.shouldScrollBottom = true;
 
@@ -1172,6 +1176,9 @@ export class ChatWindowComponent
         if (page === 0) {
           this.messages.set(msgs);
           this.shouldScrollBottom = true;
+          // Persist lastReadAt and mark all messages as READ in DB
+          this.roomService.updateLastRead(roomId).subscribe({ error: () => {} });
+          // Also send WS read receipt for the latest message
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.senderId !== this.myId()) {
             this.ws.sendReadReceipt({
@@ -1197,6 +1204,7 @@ export class ChatWindowComponent
       },
     });
   }
+
 
   loadMore(): void {
     if (!this.room() || this.loadingMore()) return;
@@ -1314,19 +1322,38 @@ export class ChatWindowComponent
       const p = evt.data as any;
       if (p.roomId === roomId) {
         this.zone.run(() => {
-          this.messages.update((msgs) =>
-            msgs.map((m) =>
-              m.messageId === p.deletedId
-                ? { ...m, isDeleted: true, content: "This message was deleted" }
-                : m,
-            ),
-          );
+          if (p.deleteType === 'ME') {
+            this.messages.update((msgs) =>
+              msgs.filter((m) => m.messageId !== p.deletedId)
+            );
+          } else {
+            this.messages.update((msgs) =>
+              msgs.map((m) =>
+                m.messageId === p.deletedId
+                  ? { ...m, isDeleted: true, content: "This message was deleted" }
+                  : m,
+              ),
+            );
+          }
           this.rebuildGroups();
           this.cdr.markForCheck();
         });
       }
     } else if (evt.kind === "REACTION") {
-      this.zone.run(() => this.cdr.markForCheck());
+      const p = evt.data as any;
+      if (p.roomId === roomId || p.messageId) {
+        this.zone.run(() => {
+          this.messages.update((msgs) =>
+            msgs.map((m) =>
+              m.messageId === p.messageId
+                ? { ...m, reactions: p.reactions ?? [] }
+                : m
+            )
+          );
+          this.rebuildGroups();
+          this.cdr.markForCheck();
+        });
+      }
     } else if (evt.kind === "PRESENCE") {
       const p = evt.data as any;
       this.zone.run(() => {
@@ -1437,21 +1464,15 @@ export class ChatWindowComponent
         await new Promise<void>((resolve, reject) => {
           upload$.subscribe({
             next: (media) => {
-              const req: MessageRequest = {
+              this.ws.sendMessage({
+                type: "CHAT_MESSAGE",
                 roomId,
-                type: pf.isImage ? "IMAGE" : "FILE",
-                mediaUrl: media.url,
                 content: pf.file.name,
-              };
-              this.messageService.sendMessage(req).subscribe({
-                next: (msg) => {
-                  this.messages.update((m) => [...m, msg]);
-                  this.rebuildGroups();
-                  this.shouldScrollBottom = true;
-                  resolve();
-                },
-                error: reject,
+                messageType: pf.isImage ? "IMAGE" : "FILE",
+                mediaUrl: media.url,
+                replyToId: this.replyTarget()?.messageId,
               });
+              resolve();
             },
             error: reject,
           });
@@ -1462,20 +1483,17 @@ export class ChatWindowComponent
     }
     this.pendingFiles.set([]);
     if (this.messageText.trim()) {
-      const req: MessageRequest = {
+      this.ws.sendMessage({
+        type: "CHAT_MESSAGE",
         roomId,
         content: this.messageText.trim(),
-        type: "TEXT",
-      };
-      this.messageService.sendMessage(req).subscribe({
-        next: (msg) => {
-          this.messages.update((m) => [...m, msg]);
-          this.rebuildGroups();
-        },
+        replyToId: this.replyTarget()?.messageId,
       });
       this.messageText = "";
     }
+    this.replyTarget.set(null);
     this.sending.set(false);
+    this.resetTextarea();
     this.cdr.markForCheck();
   }
 
@@ -1499,7 +1517,7 @@ export class ChatWindowComponent
         this.editTarget.set(null);
         this.messageText = "";
         this.sending.set(false);
-        this.ws.sendMessage({
+        this.ws.sendEdit({
           type: "MESSAGE_EDIT",
           roomId: this.room()!.roomId,
           messageId: target.messageId,
@@ -1517,8 +1535,8 @@ export class ChatWindowComponent
   }
 
   deleteMsg(msg: Message): void {
-    if (!confirm("Delete this message?")) return;
-    this.messageService.deleteMessage(msg.messageId).subscribe({
+    if (!confirm("Delete this message for everyone?")) return;
+    this.messageService.deleteMessage(msg.messageId, 'EVERYONE').subscribe({
       next: () => {
         this.messages.update((msgs) =>
           msgs.map((m) =>
@@ -1528,10 +1546,31 @@ export class ChatWindowComponent
           ),
         );
         this.rebuildGroups();
-        this.ws.sendMessage({
+        this.ws.sendDelete({
           type: "MESSAGE_DELETE",
           roomId: this.room()!.roomId,
           deletedId: msg.messageId,
+          deleteType: "EVERYONE",
+        });
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  deleteMsgForMe(msg: Message): void {
+    if (!confirm("Delete this message for yourself?")) return;
+    this.messageService.deleteMessage(msg.messageId, 'ME').subscribe({
+      next: () => {
+        // Remove from UI completely
+        this.messages.update((msgs) =>
+          msgs.filter((m) => m.messageId !== msg.messageId)
+        );
+        this.rebuildGroups();
+        this.ws.sendDelete({
+          type: "MESSAGE_DELETE",
+          roomId: this.room()!.roomId,
+          deletedId: msg.messageId,
+          deleteType: "ME",
         });
         this.cdr.markForCheck();
       },
@@ -1540,8 +1579,59 @@ export class ChatWindowComponent
 
   sendReaction(messageId: string, emoji: string): void {
     const roomId = this.room()?.roomId;
-    if (!roomId) return;
-    this.ws.sendMessage({ type: "REACTION", roomId, messageId, emoji });
+    const userId = this.myId();
+    if (!roomId || !userId) return;
+
+    // Optimistic update: toggle/add/switch reaction immediately
+    this.messages.update((msgs) =>
+      msgs.map((m) => {
+        if (m.messageId !== messageId) return m;
+        const reactions = [...(m.reactions ?? [])];
+        const existing = reactions.find((r) => r.userIds.includes(userId));
+        if (existing) {
+          if (existing.emoji === emoji) {
+            // Toggle off
+            const newUserIds = existing.userIds.filter((id) => id !== userId);
+            if (newUserIds.length === 0) {
+              return { ...m, reactions: reactions.filter((r) => r.emoji !== emoji) };
+            }
+            return { ...m, reactions: reactions.map((r) => r.emoji === emoji ? { ...r, count: newUserIds.length, userIds: newUserIds } : r) };
+          } else {
+            // Remove from old, add to new
+            const cleaned = reactions.map((r) => {
+              if (r.emoji === existing.emoji) {
+                const newIds = r.userIds.filter((id) => id !== userId);
+                return newIds.length ? { ...r, count: newIds.length, userIds: newIds } : null;
+              }
+              if (r.emoji === emoji) {
+                const newIds = [...r.userIds, userId];
+                return { ...r, count: newIds.length, userIds: newIds };
+              }
+              return r;
+            }).filter(Boolean) as any[];
+            const hasNew = cleaned.some((r) => r.emoji === emoji);
+            if (!hasNew) cleaned.push({ emoji, count: 1, userIds: [userId] });
+            return { ...m, reactions: cleaned };
+          }
+        } else {
+          const existing2 = reactions.find((r) => r.emoji === emoji);
+          if (existing2) {
+            return { ...m, reactions: reactions.map((r) => r.emoji === emoji ? { ...r, count: r.userIds.length + 1, userIds: [...r.userIds, userId] } : r) };
+          }
+          return { ...m, reactions: [...reactions, { emoji, count: 1, userIds: [userId] }] };
+        }
+      })
+    );
+    this.rebuildGroups();
+    this.cdr.markForCheck();
+
+    // Send to backend via WebSocket
+    this.ws.sendReact({
+      type: "REACTION",
+      roomId,
+      messageId,
+      emoji,
+    });
   }
 
   setReply(msg: Message): void {
@@ -1633,10 +1723,13 @@ export class ChatWindowComponent
           roomId: this.room()!.roomId,
           messageId: lastMsg.messageId,
         });
+        // Persist lastReadAt via REST
+        this.roomService.updateLastRead(this.room()!.roomId).subscribe({ error: () => {} });
       }
     }
     this.isAtBottom = atBottom;
   }
+
 
   private scrollToBottom(): void {
     try {

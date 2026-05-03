@@ -10,6 +10,7 @@ import { RoomService } from "../../../core/services/room.service";
 import { WebSocketService } from "../../../core/services/websocket.service";
 import { NotificationsPanelComponent } from "../../notifications/notifications-panel.component";
 import { NewChatModalComponent } from "../new-chat-modal/new-chat-modal.component";
+import { FcmService } from '../../../core/services/fcm.service';
 import {
   Component,
   OnInit,
@@ -756,6 +757,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
     public notifService: NotificationService,
     private presenceService: PresenceService,
     private router: Router,
+    private fcm: FcmService
   ) {}
 
   ngOnInit(): void {
@@ -766,6 +768,7 @@ export class ChatShellComponent implements OnInit, OnDestroy {
     if (userId) {
       this.notifService.getUnreadCount(userId).subscribe();
       this.connectPresence(userId);
+      this.fcm.initFcm(); 
     }
   }
 
@@ -896,9 +899,64 @@ export class ChatShellComponent implements OnInit, OnDestroy {
         const msg = evt.data;
         const roomExists = this.rooms().find((r) => r.roomId === msg.roomId);
         if (!roomExists) {
-          this.loadRooms();
+          // Fetch the room data directly rather than reloading everything
+          this.roomService.getRoomById(msg.roomId).subscribe({
+            next: (room) => {
+              this.rooms.update((list) => [room, ...list]);
+              this.ws.subscribeToRoom(room.roomId);
+            },
+            error: () => {},
+          });
         } else {
           this.handleNewMessage(msg);
+        }
+      } else if (evt.kind === "NEW_ROOM") {
+        // A new room was created (e.g. someone started a DM with us)
+        const room = evt.data?.room;
+        if (room) {
+          const roomExists = this.rooms().find((r) => r.roomId === room.roomId);
+          if (!roomExists) {
+            this.rooms.update((list) => [room, ...list]);
+            this.ws.subscribeToRoom(room.roomId);
+          }
+        }
+      } else if (evt.kind === "ROOM_UPDATED") {
+        // Chat list: update lastMessageAt + lastMessage without full reload
+        const d = evt.data;
+        if (d?.roomId) {
+          const roomExists = this.rooms().find((r) => r.roomId === d.roomId);
+          
+          if (!roomExists) {
+            // New chat started by someone else - fetch it and add to list
+            this.roomService.getRoomById(d.roomId).subscribe({
+              next: (room) => {
+                room.lastMessage = d.lastMessage;
+                room.lastMessageAt = d.lastMessageAt;
+                if (d.lastMessage && d.lastMessage.senderId !== this.auth.getUserId()) {
+                  room.unreadCount = 1;
+                }
+                this.rooms.update((list) => [room, ...list]);
+                this.ws.subscribeToRoom(room.roomId);
+              },
+              error: () => {},
+            });
+          } else {
+            // Update existing room
+            this.rooms.update((list) =>
+              list.map((r) =>
+                r.roomId === d.roomId
+                  ? {
+                      ...r,
+                      lastMessageAt: d.lastMessageAt ?? r.lastMessageAt,
+                      lastMessage: d.lastMessage ?? r.lastMessage,
+                    }
+                  : r,
+              ),
+            );
+            // We intentionally do NOT increment unreadCount here for existing rooms
+            // because handleNewMessage (which processes the "MESSAGE" event) 
+            // already increments the unreadCount. Doing it in both places causes double counting.
+          }
         }
       }
     });
@@ -965,8 +1023,18 @@ export class ChatShellComponent implements OnInit, OnDestroy {
 
   onRoomCreated(room: Room): void {
     this.showNewChat.set(false);
-    this.rooms.update((r) => [room, ...r]);
-    this.ws.subscribeToRoom(room.roomId);
+    const existingIdx = this.rooms().findIndex((r) => r.roomId === room.roomId);
+    if (existingIdx === -1) {
+      this.rooms.update((r) => [room, ...r]);
+      this.ws.subscribeToRoom(room.roomId);
+    } else {
+      // If it exists (e.g. from WS event), update it with the populated one
+      this.rooms.update((list) => {
+        const updated = [...list];
+        updated[existingIdx] = { ...updated[existingIdx], ...room };
+        return updated;
+      });
+    }
     this.openRoom(room);
   }
 

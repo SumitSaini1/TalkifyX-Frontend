@@ -305,7 +305,7 @@ export class NewChatModalComponent implements OnInit {
     const myId = this.auth.getUserId();
     if (!other || !myId) return;
 
-    // If a DM with this user already exists, open it instead of creating a new one
+    
     const existing = this.existingRooms.find(
       r => r.type === 'DM' && r.otherUser?.id === other.id
     );

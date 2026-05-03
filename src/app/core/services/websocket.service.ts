@@ -20,6 +20,8 @@ export type WsEvent =
   | { kind: "MSG_EDIT"; data: ChatPayload }
   | { kind: "MSG_DELETE"; data: ChatPayload }
   | { kind: "PRESENCE"; data: PresencePayload }
+  | { kind: "NEW_ROOM"; data: any }
+  | { kind: "ROOM_UPDATED"; data: any }
   | { kind: "CONNECTED" }
   | { kind: "DISCONNECTED" };
 
@@ -80,7 +82,7 @@ export class WebSocketService implements OnDestroy {
   subscribeToRoom(roomId: number): void {
     if (this.roomSubscriptions.has(roomId)) return;
     if (!this.connected) {
-      // Queue subscription until CONNECTED fires
+      
       const unsub = this.events$.subscribe((evt) => {
         if (evt.kind === "CONNECTED") {
           unsub.unsubscribe();
@@ -118,7 +120,7 @@ export class WebSocketService implements OnDestroy {
     const sub = this.client.subscribe(
       `/topic/user/${userId}`,
       (msg: IMessage) => {
-        // Route through handleRoomMessage so all event types are detected correctly
+        
         this.handleRoomMessage(msg);
       },
     );
@@ -130,16 +132,20 @@ export class WebSocketService implements OnDestroy {
       const data = JSON.parse(msg.body);
       console.log("[WS] raw frame:", JSON.stringify(data));
 
-      if (data.eventType === "MESSAGE") {
+      if (data.eventType === "NEW_ROOM") {
+        this.events$.next({ kind: "NEW_ROOM", data });
+      } else if (data.eventType === "ROOM_UPDATED") {
+        this.events$.next({ kind: "ROOM_UPDATED", data });
+      } else if (data.eventType === "MESSAGE") {
         this.events$.next({ kind: "MESSAGE", data: data as Message });
+      } else if (data.type === "READ_RECEIPT" || data.readerId !== undefined) {
+        this.events$.next({ kind: "READ", data: data as ReadReceiptPayload });
       } else if (data.type === "MESSAGE_EDIT") {
         this.events$.next({ kind: "MSG_EDIT", data });
       } else if (data.type === "MESSAGE_DELETE") {
         this.events$.next({ kind: "MSG_DELETE", data });
-      } else if (data.type === "REACTION") {
+      } else if (data.type === "REACTION" || data.eventType === "REACTION") {
         this.events$.next({ kind: "REACTION", data });
-      } else if (data.readerId !== undefined) {
-        this.events$.next({ kind: "READ", data: data as ReadReceiptPayload });
       } else if (
         data.isTyping !== undefined ||
         (data.senderId && data.roomId && !data.content && !data.messageId)
@@ -176,10 +182,37 @@ export class WebSocketService implements OnDestroy {
     });
   }
 
+  sendEdit(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.edit",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  sendDelete(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.delete",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
   sendReadReceipt(payload: ChatPayload): void {
     if (!this.connected) return;
     this.client.publish({
       destination: "/app/chat.read",
+      headers: { "X-User-Id": String(this.auth.getUserId()) },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  sendReact(payload: ChatPayload): void {
+    if (!this.connected) return;
+    this.client.publish({
+      destination: "/app/chat.react",
       headers: { "X-User-Id": String(this.auth.getUserId()) },
       body: JSON.stringify(payload),
     });
