@@ -42,6 +42,7 @@ import { User, UserStatus } from "../../core/models";
           <div class="avatar-ring" (click)="avatarInput.click()">
             <img
               [src]="user()?.avatarUrl || avatarPlaceholder()"
+              (error)="$event.target.src = avatarPlaceholder()"
               class="profile-avatar"
               [alt]="user()?.fullName"
             />

@@ -61,6 +61,7 @@ import { RoomInfoComponent } from "../room-info/room-info.component";
         <div class="header-avatar-wrap">
           <img
             [src]="roomAvatarUrl()"
+            (error)="$any($event.target).src = roomAvatarUrl()"
             class="header-avatar"
             [alt]="roomName()"
           />
@@ -1438,7 +1439,7 @@ export class ChatWindowComponent
       return;
     }
 
-    
+    // Only send via WS — ChatStompController saves and broadcasts
     this.ws.sendMessage({
       type: "CHAT_MESSAGE",
       roomId,
@@ -1560,7 +1561,7 @@ export class ChatWindowComponent
     if (!confirm("Delete this message for yourself?")) return;
     this.messageService.deleteMessage(msg.messageId, 'ME').subscribe({
       next: () => {
-        
+        // Remove from UI completely
         this.messages.update((msgs) =>
           msgs.filter((m) => m.messageId !== msg.messageId)
         );
@@ -1581,7 +1582,7 @@ export class ChatWindowComponent
     const userId = this.myId();
     if (!roomId || !userId) return;
 
-    
+    // Optimistic update: toggle/add/switch reaction immediately
     this.messages.update((msgs) =>
       msgs.map((m) => {
         if (m.messageId !== messageId) return m;
@@ -1624,7 +1625,7 @@ export class ChatWindowComponent
     this.rebuildGroups();
     this.cdr.markForCheck();
 
-    
+    // Send to backend via WebSocket
     this.ws.sendReact({
       type: "REACTION",
       roomId,
@@ -1722,7 +1723,7 @@ export class ChatWindowComponent
           roomId: this.room()!.roomId,
           messageId: lastMsg.messageId,
         });
-    
+        // Persist lastReadAt via REST
         this.roomService.updateLastRead(this.room()!.roomId).subscribe({ error: () => {} });
       }
     }
