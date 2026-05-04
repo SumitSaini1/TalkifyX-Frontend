@@ -42,7 +42,7 @@ import { User, UserStatus } from "../../core/models";
           <div class="avatar-ring" (click)="avatarInput.click()">
             <img
               [src]="user()?.avatarUrl || avatarPlaceholder()"
-              (error)="$event.target.src = avatarPlaceholder()"
+              (error)="onImageError($event)"
               class="profile-avatar"
               [alt]="user()?.fullName"
             />
@@ -728,6 +728,13 @@ export class ProfileComponent implements OnInit {
       },
       error: () => this.profileError.set("Failed to upload image"),
     });
+  }
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement | null;
+
+    if (img) {
+      img.src = this.avatarPlaceholder();
+    }
   }
 
   avatarPlaceholder(): string {
