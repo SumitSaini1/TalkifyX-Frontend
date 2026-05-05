@@ -1,0 +1,114 @@
+  console.log
+    [WS] currentUser: { id: 1, fullName: 'Alice', avatarUrl: null }
+
+      at WebSocketService.sendMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:162:13)
+
+  console.log
+    [WS] sending body: {"type":"CHAT_MESSAGE","roomId":1,"content":"hi","senderName":"Alice","senderAvatar":null}
+
+      at WebSocketService.sendMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:168:13)
+
+  console.log
+    [WS] raw frame: {"eventType":"NEW_ROOM"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"eventType":"ROOM_UPDATED"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"eventType":"MESSAGE","messageId":"m1"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"type":"READ_RECEIPT"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"readerId":1,"roomId":1}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"type":"MESSAGE_EDIT"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"type":"MESSAGE_DELETE"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"type":"REACTION"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"eventType":"REACTION"}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"isTyping":true,"senderId":1,"roomId":1}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.log
+    [WS] raw frame: {"senderId":1,"roomId":1}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
+  console.error
+    [WS] parse error SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+        at JSON.parse (<anonymous>)
+        at WebSocketService.handleRoomMessage (D:\Project(P)\TalkifyX-Frontend\src\app\core\services\websocket.service.ts:132:25)
+        at D:\Project(P)\TalkifyX-Frontend\__tests__\websocket.service.spec.ts:130:79
+        at Object.<anonymous> (D:\Project(P)\TalkifyX-Frontend\node_modules\@jest\expect\node_modules\expect\build\toThrowMatchers.js:74:11)
+        at Object.throwingMatcher [as toThrow] (D:\Project(P)\TalkifyX-Frontend\node_modules\@jest\expect\node_modules\expect\build\index.js:320:21)
+        at D:\Project(P)\TalkifyX-Frontend\__tests__\websocket.service.spec.ts:130:125
+        at _ZoneDelegate.invoke (D:\Project(P)\TalkifyX-Frontend\node_modules\zone.js\bundles\zone.umd.js:416:32)
+        at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (D:\Project(P)\TalkifyX-Frontend\node_modules\zone.js\bundles\zone-testing.umd.js:2176:43)
+        at _ZoneDelegate.invoke (D:\Project(P)\TalkifyX-Frontend\node_modules\zone.js\bundles\zone.umd.js:415:38)
+        at ZoneImpl.run (D:\Project(P)\TalkifyX-Frontend\node_modules\zone.js\bundles\zone.umd.js:147:47)
+        at Object.wrappedFunc (D:\Project(P)\TalkifyX-Frontend\node_modules\zone.js\bundles\zone-testing.umd.js:450:38)
+        at Promise.then.completed (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\utils.js:298:28)
+        at new Promise (<anonymous>)
+        at callAsyncCircusFn (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\utils.js:231:10)
+        at _callCircusTest (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:316:40)
+        at processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at _runTest (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:252:3)
+        at _runTestsForDescribeBlock (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:126:9)
+        at _runTestsForDescribeBlock (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:121:9)
+        at _runTestsForDescribeBlock (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:121:9)
+        at run (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\run.js:71:3)
+        at runAndTransformResultsToJestFormat (D:\Project(P)\TalkifyX-Frontend\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+
+    [0m [90m 154 |[39m       }
+     [90m 155 |[39m     } [36mcatch[39m (e) {
+    [31m[1m>[22m[39m[90m 156 |[39m       console[33m.[39merror([32m"[WS] parse error"[39m[33m,[39m e)[33m;[39m
+     [90m     |[39m               [31m[1m^[22m[39m
+     [90m 157 |[39m     }
+     [90m 158 |[39m   }
+     [90m 159 |[39m   sendMessage(payload[33m:[39m [33mChatPayload[39m)[33m:[39m [36mvoid[39m {[0m
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:156:15)
+      at D:\Project(P)../../TalkifyX-Frontend/__tests__/websocket.service.spec.ts:130:79
+      at Object.<anonymous> (D:\Project(P)../../TalkifyX-Frontend/node_modules/@jest/expect/node_modules/expect/build/toThrowMatchers.js:74:11)
+      at Object.throwingMatcher [as toThrow] (D:\Project(P)../../TalkifyX-Frontend/node_modules/@jest/expect/node_modules/expect/build/index.js:320:21)
+      at D:\Project(P)../../TalkifyX-Frontend/__tests__/websocket.service.spec.ts:130:125
+      at _ZoneDelegate.invoke (D:\Project(P)../../TalkifyX-Frontend/node_modules/zone.js/bundles/zone.umd.js:416:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (D:\Project(P)../../TalkifyX-Frontend/node_modules/zone.js/bundles/zone-testing.umd.js:2176:43)
+      at _ZoneDelegate.invoke (D:\Project(P)../../TalkifyX-Frontend/node_modules/zone.js/bundles/zone.umd.js:415:38)
+      at ZoneImpl.run (D:\Project(P)../../TalkifyX-Frontend/node_modules/zone.js/bundles/zone.umd.js:147:47)
+      at Object.wrappedFunc (D:\Project(P)../../TalkifyX-Frontend/node_modules/zone.js/bundles/zone-testing.umd.js:450:38)
+
+  console.log
+    [WS] raw frame: {"someRandom":true}
+
+      at WebSocketService.handleRoomMessage (D:\Project(P)../../TalkifyX-Frontend/src/app/core/services/websocket.service.ts:133:15)
+
