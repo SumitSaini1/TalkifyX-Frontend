@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:8080',
-  wsUrl: 'http://localhost:8085/ws',
+  apiBaseUrl: 'http://13.206.79.87:8080',
+  wsUrl: 'http://13.206.79.87:8085/ws',
   firebase: {
     apiKey: 'REPLACE_WITH_YOUR_FIREBASE_API_KEY',
     authDomain: 'REPLACE_WITH_YOUR_AUTH_DOMAIN',
