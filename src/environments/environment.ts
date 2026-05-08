@@ -1,10 +1,7 @@
 export const environment = {
-  // production: false,
-  production:true,
-  // apiBaseUrl: 'http://localhost:8080',
-  // wsUrl: 'http://localhost:8085/ws',
-  apiBaseUrl: 'http://13.206.79.87:8080',
-  wsUrl: 'http://13.206.79.87:8085/ws',
+  production: false,
+  apiBaseUrl: 'http://localhost:8080',
+  wsUrl: 'http://localhost:8085/ws',
   oauthGoogleUrl: 'http://localhost:8081/oauth2/authorization/google',
   firebase: {
     apiKey: "AIzaSyC7wzEitred9snbKPPKpoyTNkY6xNIVgoc",
