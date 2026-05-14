@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   apiBaseUrl: "https://talkifyx.duckdns.org",
-  wsUrl: "wss://talkifyx.duckdns.org/ws",
+  wsUrl: "https://talkifyx.duckdns.org/ws",
   oauthGoogleUrl: "https://talkifyx.duckdns.org/oauth2/authorization/google",
   firebase: {
     apiKey: "AIzaSyC7wzEitced9snKBRPkoyTNkVoxNIVgoc",
