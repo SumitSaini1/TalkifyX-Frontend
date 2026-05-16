@@ -519,7 +519,8 @@ export class MessageBubbleComponent {
 
   formatTime(dateStr: string): string {
     if (!dateStr) return "";
-    return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const date = new Date(dateStr + (dateStr.includes('Z') || dateStr.includes('+') ? '' : '+05:30'));
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
   onReply(): void {
