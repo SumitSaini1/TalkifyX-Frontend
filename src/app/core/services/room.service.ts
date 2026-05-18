@@ -1,10 +1,11 @@
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { Room, RoomRequest, RoomMember } from '../models';
+import { Injectable } from "@angular/core";
+import { HttpClient } from "@angular/common/http";
+import { Observable, map, of } from "rxjs";
+import { catchError } from "rxjs/operators";
+import { environment } from "../../../environments/environment";
+import { Room, RoomRequest, RoomMember } from "../models";
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class RoomService {
   private readonly base = `${environment.apiBaseUrl}/api/rooms`;
 
@@ -32,7 +33,7 @@ export class RoomService {
 
   addMember(roomId: number, userId: number): Observable<RoomMember> {
     return this.http.post<RoomMember>(`${this.base}/${roomId}/members`, null, {
-      params: { userId }
+      params: { userId },
     });
   }
 
@@ -44,16 +45,37 @@ export class RoomService {
     return this.http.get<RoomMember[]>(`${this.base}/${roomId}/members`);
   }
 
-  updateMemberRole(roomId: number, userId: number, role: string): Observable<RoomMember> {
-    return this.http.put<RoomMember>(`${this.base}/${roomId}/members/${userId}/role`, null, {
-      params: { role }
-    });
+  updateMemberRole(
+    roomId: number,
+    userId: number,
+    role: string,
+  ): Observable<RoomMember> {
+    return this.http.put<RoomMember>(
+      `${this.base}/${roomId}/members/${userId}/role`,
+      null,
+      { params: { role } },
+    );
   }
 
-  muteUnmuteMember(roomId: number, userId: number, mute: boolean): Observable<void> {
-    return this.http.put<void>(`${this.base}/${roomId}/members/${userId}/mute`, null, {
-      params: { mute }
-    });
+  muteUnmuteMember(
+    roomId: number,
+    userId: number,
+    mute: boolean,
+  ): Observable<void> {
+    return this.http.put<void>(
+      `${this.base}/${roomId}/members/${userId}/mute`,
+      null,
+      { params: { mute } },
+    );
+  }
+
+  getUnreadCountByDate(roomId: number, after: string): Observable<number> {
+    return this.http
+      .get<number>(
+        `${environment.apiBaseUrl}/api/messages/room/${roomId}/unread`,
+        { params: { after } },
+      )
+      .pipe(catchError(() => of(0)));
   }
 
   getUnreadCount(roomId: number, userId: number): Observable<number> {
@@ -64,21 +86,45 @@ export class RoomService {
     return this.http.put<void>(`${this.base}/${roomId}/read`, null);
   }
 
-  createDM(currentUserId: number, otherUserId: number, otherUsername: string): Observable<Room> {
+  getLastMessage(roomId: number): Observable<any> {
+    return this.http
+      .get<any>(`${environment.apiBaseUrl}/api/messages/room/${roomId}`, {
+        params: { page: 0, size: 1 },
+      })
+      .pipe(
+        map((r: any) => {
+          if (r?.content?.length) return r.content[0];
+          if (Array.isArray(r) && r.length) return r[0];
+          return null;
+        }),
+        catchError(() => of(null)),
+      );
+  }
+
+  createDM(
+    currentUserId: number,
+    otherUserId: number,
+    otherUsername: string,
+  ): Observable<Room> {
     const req: RoomRequest = {
       name: `DM_${currentUserId}_${otherUserId}`,
-      type: 'DM',
-      isPrivate: true
+      type: "DM",
+      isPrivate: true,
     };
-    return new Observable(observer => {
+    return new Observable((observer) => {
       this.createRoom(req).subscribe({
-        next: room => {
+        next: (room) => {
           this.addMember(room.roomId, otherUserId).subscribe({
-            next: () => observer.next(room),
-            error: err => observer.error(err)
+            next: () => {
+              this.getRoomById(room.roomId).subscribe({
+                next: (fullRoom) => observer.next(fullRoom),
+                error: () => observer.next(room)
+              });
+            },
+            error: (err) => observer.error(err),
           });
         },
-        error: err => observer.error(err)
+        error: (err) => observer.error(err),
       });
     });
   }

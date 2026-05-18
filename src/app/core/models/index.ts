@@ -41,6 +41,7 @@ export interface ProfileUpdateRequest {
   fullName?: string;
   username?: string;
   avatarUrl?: string;
+  fcmToken?: string;
 }
 
 export interface ChangePasswordRequest {
@@ -67,10 +68,9 @@ export interface Room {
   lastMessageAt?: string;
   createdAt?: string;
   memberCount?: number;
-  // UI computed
   unreadCount?: number;
   lastMessage?: Message;
-  otherUser?: User; // for DMs
+  otherUser?: User;
 }
 
 export interface RoomRequest {
@@ -90,7 +90,6 @@ export interface RoomMember {
   joinedAt?: string;
   lastReadAt?: string;
   isMuted?: boolean;
-  // UI joined
   user?: User;
 }
 
@@ -111,7 +110,8 @@ export interface Message {
   deliveryStatus: DeliveryStatus;
   sentAt: string;
   editedAt?: string;
-  // UI joined
+  senderName?: string;
+  senderAvatar?: string;
   sender?: User;
   replyToMessage?: Message;
   reactions?: ReactionGroup[];
@@ -141,7 +141,6 @@ export interface ReactionGroup {
   userIds: number[];
 }
 
-// ===== WEBSOCKET PAYLOADS =====
 export interface ChatPayload {
   type: 'CHAT_MESSAGE' | 'TYPING_INDICATOR' | 'READ_RECEIPT' | 'REACTION' | 'MESSAGE_EDIT' | 'MESSAGE_DELETE';
   senderId?: number;
@@ -152,8 +151,13 @@ export interface ChatPayload {
   newContent?: string;
   deletedId?: string;
   emoji?: string;
+  upToMessageId?: string; 
+  senderName?: string;
+  senderAvatar?: string;
+  deleteType?: 'ME' | 'EVERYONE';
+  messageType?: string;
+  mediaUrl?: string;
 }
-
 export interface TypingPayload {
   senderId: number;
   roomId: number;
@@ -223,7 +227,6 @@ export interface Notification {
   messageId?: string;
   isRead: boolean;
   createdAt: string;
-  // UI joined
   actor?: User;
 }
 
